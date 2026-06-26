@@ -1,126 +1,99 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useTransition } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { loginWithUsername } from "@/lib/actions/auth";
 
 function LoginForm() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") ?? "/";
 
-  const [email, setEmail] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [optIn, setOptIn] = useState(true);
-  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [message, setMessage] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [pending, startTransition] = useTransition();
 
-  async function handleSubmit(e: React.FormEvent) {
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setStatus("sending");
-    setMessage("");
-
-    const supabase = createClient();
-    // 本番(Vercel)では NEXT_PUBLIC_SITE_URL を、未設定のローカル等では現在のoriginを使う。
-    // これで localhost と Vercel の両方で正しいコールバックURLになる。
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-    const callbackUrl = new URL("/auth/callback", baseUrl);
-    callbackUrl.searchParams.set("redirect", redirect);
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        emailRedirectTo: callbackUrl.toString(),
-        data: {
-          nickname: nickname.trim(),
-          marketing_opt_in: optIn,
-        },
-      },
+    setError("");
+    startTransition(async () => {
+      const res = await loginWithUsername({ username, password, redirect });
+      // 成功時はサーバー側で redirect されるためここには来ない
+      if (res?.error) setError(res.error);
     });
-
-    if (error) {
-      setStatus("error");
-      setMessage(error.message);
-      return;
-    }
-    setStatus("sent");
   }
 
-  if (status === "sent") {
-    return (
-      <div className="mx-auto max-w-sm rounded-2xl border border-black/10 bg-white p-8 text-center">
-        <h1 className="text-xl font-semibold">メールを確認してください</h1>
-        <p className="mt-3 text-sm text-black/60">
-          <span className="font-medium text-ink">{email}</span> にログインリンクを送りました。
-          メール内のリンクを開くとログインが完了します。
-        </p>
-        <p className="mt-4 text-xs text-black/40">
-          数分待っても届かない場合は迷惑メールフォルダをご確認ください。
-        </p>
-      </div>
-    );
-  }
+  const inputClass =
+    "mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm outline-none focus:border-ink";
 
   return (
     <div className="mx-auto max-w-sm">
-      <h1 className="text-2xl font-semibold">ログイン / 新規登録</h1>
+      <h1 className="text-2xl font-semibold">ログイン</h1>
       <p className="mt-2 text-sm text-black/60">
-        メールアドレスにログインリンクを送ります。パスワードは不要です。
+        ユーザーIDとパスワードでログインします。
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+      <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <div>
-          <label className="block text-sm font-medium">メールアドレス</label>
+          <label className="block text-sm font-medium">ユーザーID</label>
+          <div className="mt-1 flex items-center rounded-lg border border-black/15 px-3 focus-within:border-ink">
+            <span className="text-sm text-black/40">@</span>
+            <input
+              type="text"
+              required
+              autoCapitalize="none"
+              autoCorrect="off"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="kenta1987"
+              className="w-full bg-transparent px-1.5 py-2 text-sm outline-none"
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium">パスワード</label>
+            <Link href="/forgot-password" className="text-xs text-black/45 hover:text-ink">
+              お忘れですか？
+            </Link>
+          </div>
           <input
-            type="email"
+            type="password"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm outline-none focus:border-ink"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputClass}
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium">
-            ニックネーム <span className="text-black/40">（新規登録の方）</span>
-          </label>
-          <input
-            type="text"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            placeholder="例：watch_lover"
-            maxLength={30}
-            className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm outline-none focus:border-ink"
-          />
-          <p className="mt-1 text-xs text-black/40">
-            ギャラリーに表示される名前です。後から変更できます。
-          </p>
-        </div>
-
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={optIn}
-            onChange={(e) => setOptIn(e.target.checked)}
-            className="mt-0.5"
-          />
-          <span className="text-black/70">
-            新商品・キャンペーン情報のメールを受け取る
-          </span>
-        </label>
-
-        {status === "error" && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{message}</p>
+        {error && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
         )}
 
         <button
           type="submit"
-          disabled={status === "sending"}
+          disabled={pending}
           className="w-full rounded-full bg-ink py-3 text-sm font-medium text-white hover:opacity-80 disabled:opacity-50"
         >
-          {status === "sending" ? "送信中…" : "ログインリンクを送る"}
+          {pending ? "ログイン中…" : "ログイン"}
         </button>
       </form>
+
+      <div className="mt-6 space-y-2 text-center text-sm">
+        <p className="text-black/60">
+          アカウントがない？{" "}
+          <Link href="/signup" className="font-medium text-ink hover:underline">
+            新規登録
+          </Link>
+        </p>
+        <p>
+          <Link href="/login/magic" className="text-black/45 hover:text-ink">
+            メールリンクでログイン
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,11 @@ export interface Database {
         Row: {
           id: string;
           nickname: string;
+          username: string | null;
+          display_name: string | null;
+          avatar_path: string | null;
+          bio: string | null;
+          favorite_watch: string | null;
           watch_model: string | null;
           current_band: string | null;
           marketing_opt_in: boolean;
@@ -21,12 +26,71 @@ export interface Database {
         Insert: {
           id: string;
           nickname: string;
+          username?: string | null;
+          display_name?: string | null;
+          avatar_path?: string | null;
+          bio?: string | null;
+          favorite_watch?: string | null;
           watch_model?: string | null;
           current_band?: string | null;
           marketing_opt_in?: boolean;
           role?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+        Relationships: [];
+      };
+      owned_watches: {
+        Row: {
+          id: string;
+          user_id: string;
+          model: string;
+          color: string | null;
+          created_at: string;
+        };
+        Insert: { user_id: string; model: string; color?: string | null };
+        Update: Partial<{ model: string; color: string | null }>;
+        Relationships: [];
+      };
+      owned_bands: {
+        Row: {
+          id: string;
+          user_id: string;
+          brand: string | null;
+          name: string;
+          color: string | null;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          name: string;
+          brand?: string | null;
+          color?: string | null;
+        };
+        Update: Partial<{ brand: string | null; name: string; color: string | null }>;
+        Relationships: [];
+      };
+      owned_faces: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          share_url: string | null;
+          recipe: unknown | null;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          name: string;
+          share_url?: string | null;
+          recipe?: unknown | null;
+        };
+        Update: Partial<{ name: string; share_url: string | null; recipe: unknown | null }>;
+        Relationships: [];
+      };
+      follows: {
+        Row: { follower_id: string; followee_id: string; created_at: string };
+        Insert: { follower_id: string; followee_id: string };
+        Update: { follower_id?: string; followee_id?: string };
         Relationships: [];
       };
       posts: {
