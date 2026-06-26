@@ -1,0 +1,65 @@
+type GalleryCardPost = {
+  id: string;
+  nickname: string;
+  watch_model: string;
+  band_brand: string | null;
+  band_name: string | null;
+  color: string | null;
+  comment: string | null;
+  product_url: string | null;
+  product_handle: string | null;
+};
+
+export function GalleryCard({
+  post,
+  imageUrl,
+}: {
+  post: GalleryCardPost;
+  imageUrl: string;
+}) {
+  const bandLine = [post.band_brand, post.band_name, post.color]
+    .filter(Boolean)
+    .join(" / ");
+
+  return (
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white">
+      <div className="aspect-square w-full bg-black/5">
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt={`${post.nickname} の着画`}
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-xs text-black/30">
+            画像を読み込めません
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col gap-1 p-3 text-sm">
+        <p className="font-medium leading-tight">{post.nickname}</p>
+        <p className="text-xs text-black/50">{post.watch_model}</p>
+        {bandLine && <p className="text-xs text-black/50">{bandLine}</p>}
+        {post.comment && (
+          <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-black/80">
+            {post.comment}
+          </p>
+        )}
+
+        {post.product_url && (
+          <a
+            href={post.product_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-auto inline-flex items-center justify-center rounded-full bg-ink px-3 py-2 text-xs font-medium text-white hover:opacity-80"
+          >
+            このバンドを見る →
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}

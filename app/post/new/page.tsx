@@ -1,0 +1,46 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { PostForm } from "@/components/post/PostForm";
+
+export const dynamic = "force-dynamic";
+
+export default async function NewPostPage() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login?redirect=/post/new");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("nickname, watch_model")
+    .eq("id", user.id)
+    .single<{ nickname: string; watch_model: string | null }>();
+
+  // プロフィール未完了なら先にオンボーディング
+  if (!profile?.watch_model) {
+    redirect("/onboarding?redirect=/post/new");
+  }
+
+  const [{ data: models }, { data: brands }] = await Promise.all([
+    supabase.from("watch_models").select("label").order("sort_order"),
+    supabase.from("band_brands").select("label").order("sort_order"),
+  ]);
+
+  return (
+    <div className="mx-auto max-w-lg">
+      <h1 className="text-2xl font-semibold">あなたのStyleを投稿</h1>
+      <p className="mt-2 text-sm text-black/60">
+        Apple Watch 本体・バンド・文字盤の組み合わせ（Style）を共有しましょう。
+        投稿は運営の承認後に公開されます。
+      </p>
+
+      <PostForm
+        nickname={profile.nickname}
+        defaultWatchModel={profile.watch_model}
+        models={(models ?? []).map((m) => m.label)}
+        brands={(brands ?? []).map((b) => b.label)}
+      />
+    </div>
+  );
+}
