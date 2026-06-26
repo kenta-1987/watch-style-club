@@ -20,7 +20,10 @@ function LoginForm() {
     setMessage("");
 
     const supabase = createClient();
-    const callbackUrl = new URL("/auth/callback", window.location.origin);
+    // 本番(Vercel)では NEXT_PUBLIC_SITE_URL を、未設定のローカル等では現在のoriginを使う。
+    // これで localhost と Vercel の両方で正しいコールバックURLになる。
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    const callbackUrl = new URL("/auth/callback", baseUrl);
     callbackUrl.searchParams.set("redirect", redirect);
 
     const { error } = await supabase.auth.signInWithOtp({
