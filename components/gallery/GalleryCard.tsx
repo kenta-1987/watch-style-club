@@ -1,3 +1,6 @@
+import Link from "next/link";
+import type { PostAuthor } from "@/lib/posts";
+
 type GalleryCardPost = {
   id: string;
   nickname: string;
@@ -8,6 +11,7 @@ type GalleryCardPost = {
   comment: string | null;
   product_url: string | null;
   product_handle: string | null;
+  author: PostAuthor;
 };
 
 export function GalleryCard({
@@ -40,7 +44,18 @@ export function GalleryCard({
       </div>
 
       <div className="flex flex-1 flex-col gap-1 p-3 text-sm">
-        <p className="font-medium leading-tight">{post.nickname}</p>
+        {post.author.username ? (
+          <Link
+            href={`/u/${post.author.username}`}
+            className="font-medium leading-tight hover:underline"
+          >
+            {post.author.displayName ?? post.nickname}
+          </Link>
+        ) : (
+          <p className="font-medium leading-tight">
+            {post.author.displayName ?? post.nickname}
+          </p>
+        )}
         <p className="text-xs text-black/50">{post.watch_model}</p>
         {bandLine && <p className="text-xs text-black/50">{bandLine}</p>}
         {post.comment && (

@@ -76,7 +76,9 @@ export default async function RankingPage({
                   ) : null}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{post.nickname}</p>
+                  <p className="truncate text-sm font-medium">
+                    {post.author.displayName ?? post.nickname}
+                  </p>
                   <p className="truncate text-xs text-black/50">{post.watch_model}</p>
                   {post.band_brand && (
                     <p className="truncate text-xs text-black/40">{post.band_brand}</p>

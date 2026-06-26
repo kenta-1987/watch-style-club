@@ -36,7 +36,7 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // 投稿・管理は要ログイン
-  const protectedPrefixes = ["/post", "/admin", "/onboarding"];
+  const protectedPrefixes = ["/post", "/admin", "/onboarding", "/settings"];
   const needsAuth = protectedPrefixes.some((p) => path.startsWith(p));
 
   if (needsAuth && !user) {

@@ -24,8 +24,8 @@ export function TimelineItem({
   return (
     <article className="overflow-hidden rounded-2xl border border-black/10 bg-white">
       <AuthorHeader
-        nickname={post.nickname}
-        watchModel={post.watch_model}
+        author={post.author}
+        fallbackName={post.nickname}
         createdAt={post.created_at}
         featured={featured}
       />

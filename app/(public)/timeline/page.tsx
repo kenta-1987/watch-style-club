@@ -71,7 +71,7 @@ export default async function TimelinePage() {
                 key={p.id}
                 id={p.id}
                 imageUrl={featured.signedUrls[p.image_path] ?? ""}
-                nickname={p.nickname}
+                nickname={p.author.displayName ?? p.nickname}
               />
             ))}
           </SectionRail>
@@ -89,7 +89,7 @@ export default async function TimelinePage() {
                 key={p.id}
                 id={p.id}
                 imageUrl={ranking.signedUrls[p.image_path] ?? ""}
-                nickname={p.nickname}
+                nickname={p.author.displayName ?? p.nickname}
                 rank={i + 1}
                 metric={`♡ ${p.score}`}
               />

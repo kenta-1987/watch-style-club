@@ -2,6 +2,14 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getSignedUrls } from "@/lib/storage";
 
+/** 投稿者（profiles から join）。username 未設定でも壊れないよう全て nullable。 */
+export type PostAuthor = {
+  userId: string;
+  username: string | null;
+  displayName: string | null;
+  avatarPath: string | null;
+};
+
 /** ギャラリー・タイムライン共通の公開投稿型 */
 export type PublicPost = {
   id: string;
@@ -17,24 +25,51 @@ export type PublicPost = {
   like_count: number;
   featured_at: string | null;
   created_at: string;
+  author: PostAuthor;
 };
 
 /** ランキング表示用：公開投稿＋期間内スコア */
 export type RankedPost = PublicPost & { score: number };
 
+// posts↔profiles は user_id 以外に likes/bookmarks 経由の関係もあり曖昧になるため、
+// FK名で明示（profiles!posts_user_id_fkey）。
 const PUBLIC_COLUMNS =
-  "id, nickname, watch_model, band_brand, band_name, color, comment, product_url, product_handle, image_path, like_count, featured_at, created_at";
+  "id, user_id, nickname, watch_model, band_brand, band_name, color, comment, product_url, product_handle, image_path, like_count, featured_at, created_at, profiles!posts_user_id_fkey(username, display_name, avatar_path)";
+
+type RawPost = Omit<PublicPost, "author"> & {
+  user_id: string;
+  profiles: {
+    username: string | null;
+    display_name: string | null;
+    avatar_path: string | null;
+  } | null;
+};
+
+/** DB行（profiles 埋め込み）を PublicPost にフラット化 */
+function mapPost(r: RawPost): PublicPost {
+  const { user_id, profiles, ...rest } = r;
+  return {
+    ...rest,
+    author: {
+      userId: user_id,
+      username: profiles?.username ?? null,
+      displayName: profiles?.display_name ?? null,
+      avatarPath: profiles?.avatar_path ?? null,
+    },
+  };
+}
 
 export type ApprovedPostsOptions = {
   model?: string;
   brand?: string;
   color?: string;
+  userId?: string;
   limit?: number;
 };
 
 /**
  * 承認済み投稿を新着順で取得し、画像の署名URLをまとめて返す（サーバー専用）。
- * ギャラリー（検索・グリッド）とタイムライン（新着フィード）で共有する。
+ * ギャラリー（検索・グリッド）・タイムライン・プロフィールで共有する。
  */
 export async function getApprovedPosts(opts: ApprovedPostsOptions = {}): Promise<{
   posts: PublicPost[];
@@ -51,10 +86,11 @@ export async function getApprovedPosts(opts: ApprovedPostsOptions = {}): Promise
   if (opts.model) query = query.eq("watch_model", opts.model);
   if (opts.brand) query = query.eq("band_brand", opts.brand);
   if (opts.color) query = query.eq("color", opts.color);
+  if (opts.userId) query = query.eq("user_id", opts.userId);
   if (opts.limit) query = query.limit(opts.limit);
 
-  const { data } = await query.returns<PublicPost[]>();
-  const posts = data ?? [];
+  const { data } = await query.returns<RawPost[]>();
+  const posts = (data ?? []).map(mapPost);
   const signedUrls = await getSignedUrls(posts.map((p) => p.image_path));
 
   return { posts, signedUrls };
@@ -73,9 +109,28 @@ export async function getFeaturedPosts(limit = 6): Promise<{
     .not("featured_at", "is", null)
     .order("featured_at", { ascending: false })
     .limit(limit)
-    .returns<PublicPost[]>();
+    .returns<RawPost[]>();
 
-  const posts = data ?? [];
+  const posts = (data ?? []).map(mapPost);
+  const signedUrls = await getSignedUrls(posts.map((p) => p.image_path));
+  return { posts, signedUrls };
+}
+
+/** 指定IDの承認済み投稿をまとめて取得（保存したStyle等）。新着順。 */
+export async function getStylesByIds(ids: string[]): Promise<{
+  posts: PublicPost[];
+  signedUrls: Record<string, string>;
+}> {
+  if (ids.length === 0) return { posts: [], signedUrls: {} };
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("posts")
+    .select(PUBLIC_COLUMNS)
+    .in("id", ids)
+    .eq("status", "approved")
+    .order("created_at", { ascending: false })
+    .returns<RawPost[]>();
+  const posts = (data ?? []).map(mapPost);
   const signedUrls = await getSignedUrls(posts.map((p) => p.image_path));
   return { posts, signedUrls };
 }
@@ -99,9 +154,9 @@ export async function getRanking(
     .from("posts")
     .select(PUBLIC_COLUMNS)
     .in("id", ids)
-    .returns<PublicPost[]>();
+    .returns<RawPost[]>();
 
-  const byId = new Map((postRows ?? []).map((p) => [p.id, p]));
+  const byId = new Map((postRows ?? []).map((r) => [r.id, mapPost(r)]));
   // get_ranking の順序（スコア降順）を保ったまま合流
   const posts: RankedPost[] = rows
     .map((r) => {
