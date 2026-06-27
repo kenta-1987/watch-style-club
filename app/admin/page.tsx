@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getSignedUrls } from "@/lib/storage";
+import { getSkuOptions } from "@/lib/catalog";
 import { ReviewCard } from "@/components/admin/ReviewCard";
 import type { PostStatus } from "@/lib/database.types";
 
@@ -19,6 +20,7 @@ type AdminPost = {
   product_handle: string | null;
   status: PostStatus;
   featured_at: string | null;
+  sku_id: string | null;
   created_at: string;
 };
 
@@ -41,14 +43,17 @@ export default async function AdminPage({
         : "pending";
 
   const supabase = createClient();
-  const { data: posts } = await supabase
-    .from("posts")
-    .select(
-      "id, image_path, nickname, watch_model, band_brand, band_name, color, comment, product_url, product_handle, status, featured_at, created_at"
-    )
-    .eq("status", status)
-    .order("created_at", { ascending: false })
-    .returns<AdminPost[]>();
+  const [{ data: posts }, skuOptions] = await Promise.all([
+    supabase
+      .from("posts")
+      .select(
+        "id, image_path, nickname, watch_model, band_brand, band_name, color, comment, product_url, product_handle, status, featured_at, sku_id, created_at"
+      )
+      .eq("status", status)
+      .order("created_at", { ascending: false })
+      .returns<AdminPost[]>(),
+    getSkuOptions(),
+  ]);
 
   const list = posts ?? [];
   const signedUrls = await getSignedUrls(list.map((p) => p.image_path));
@@ -58,6 +63,9 @@ export default async function AdminPage({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">投稿レビュー</h1>
         <div className="flex items-center gap-4">
+          <Link href="/admin/skus" className="text-sm text-black/50 hover:text-ink">
+            SKU/Face →
+          </Link>
           <Link href="/admin/digest" className="text-sm text-black/50 hover:text-ink">
             ダイジェスト →
           </Link>
@@ -103,6 +111,7 @@ export default async function AdminPage({
               key={post.id}
               post={post}
               imageUrl={signedUrls[post.image_path] ?? ""}
+              skuOptions={skuOptions}
             />
           ))}
         </div>

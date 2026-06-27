@@ -2,9 +2,8 @@ import type { PublicPost } from "@/lib/posts";
 import { AuthorHeader } from "@/components/timeline/AuthorHeader";
 import { LikeButton } from "@/components/timeline/LikeButton";
 import { BookmarkButton } from "@/components/timeline/BookmarkButton";
-import { AICoordinateButton } from "@/components/timeline/AICoordinateButton";
 import { StyleSpec } from "@/components/style/StyleSpec";
-import { ReproduceStyle } from "@/components/style/ReproduceStyle";
+import { RecommendedFace } from "@/components/style/RecommendedFace";
 
 export function TimelineItem({
   post,
@@ -66,13 +65,24 @@ export function TimelineItem({
           </p>
         )}
 
-        {/* Style = Apple Watch × Band × Face */}
+        {/* Style = Apple Watch × Band */}
         <StyleSpec post={post} />
 
-        {/* 🟢 このStyleを再現（①文字盤を追加 / ②このバンドを見る） */}
-        <ReproduceStyle productUrl={post.product_url} />
+        {/* ⭐ おすすめ文字盤 → 🟢 この文字盤を追加 */}
+        <RecommendedFace post={post} />
 
-        <AICoordinateButton />
+        {/* 🛒 このバンドを見る */}
+        {post.product_url && (
+          <a
+            href={post.product_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 rounded-full bg-ink py-2.5 text-sm font-semibold text-white hover:opacity-80"
+          >
+            <span className="text-base leading-none">🛒</span>
+            このバンドを見る
+          </a>
+        )}
       </div>
     </article>
   );

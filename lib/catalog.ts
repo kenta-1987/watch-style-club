@@ -1,0 +1,153 @@
+import "server-only";
+import { createClient } from "@/lib/supabase/server";
+
+export type Brand = { id: string; slug: string; name: string };
+export type Series = { id: string; brand_id: string; name: string; slug: string | null };
+export type Sku = {
+  id: string;
+  series_id: string;
+  color_name: string;
+  color_hex: string | null;
+  shopify_product_handle: string | null;
+  shopify_variant_id: string | null;
+  is_active: boolean;
+};
+
+export type FaceRecommendation = {
+  id: string;
+  sku_id: string;
+  watch_model: string | null;
+  name: string;
+  category: string | null;
+  apple_share_url: string | null;
+  editor_comment: string | null;
+  rating: number | null;
+  priority: number;
+  is_published: boolean;
+};
+
+/** SKU 選択用のフラットリスト（ラベル = Brand Series Color） */
+export type SkuOption = { id: string; label: string };
+
+type SkuOptionRow = {
+  id: string;
+  color_name: string;
+  series: { name: string; brands: { name: string } | null } | null;
+};
+
+export async function getSkuOptions(): Promise<SkuOption[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("skus")
+    .select("id, color_name, series(name, brands(name))")
+    .order("created_at", { ascending: true })
+    .returns<SkuOptionRow[]>();
+
+  return (data ?? []).map((s) => ({
+    id: s.id,
+    label: [s.series?.brands?.name, s.series?.name, s.color_name]
+      .filter(Boolean)
+      .join(" "),
+  }));
+}
+
+export async function getBrands(): Promise<Brand[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("brands")
+    .select("id, slug, name")
+    .order("name")
+    .returns<Brand[]>();
+  return data ?? [];
+}
+
+export async function getSeriesByBrand(brandId: string): Promise<Series[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("series")
+    .select("id, brand_id, name, slug")
+    .eq("brand_id", brandId)
+    .order("name")
+    .returns<Series[]>();
+  return data ?? [];
+}
+
+/** Brand → Series → SKU のツリー（Admin カタログ画面用） */
+export type CatalogTree = {
+  brand: Brand;
+  series: { series: Series; skus: Sku[] }[];
+}[];
+
+export async function getCatalogTree(): Promise<CatalogTree> {
+  const supabase = createClient();
+  const [{ data: brands }, { data: allSeries }, { data: allSkus }] = await Promise.all([
+    supabase.from("brands").select("id, slug, name").order("name").returns<Brand[]>(),
+    supabase
+      .from("series")
+      .select("id, brand_id, name, slug")
+      .order("name")
+      .returns<Series[]>(),
+    supabase
+      .from("skus")
+      .select(
+        "id, series_id, color_name, color_hex, shopify_product_handle, shopify_variant_id, is_active"
+      )
+      .order("created_at", { ascending: true })
+      .returns<Sku[]>(),
+  ]);
+
+  const seriesByBrand = new Map<string, Series[]>();
+  for (const s of allSeries ?? []) {
+    const arr = seriesByBrand.get(s.brand_id) ?? [];
+    arr.push(s);
+    seriesByBrand.set(s.brand_id, arr);
+  }
+  const skusBySeries = new Map<string, Sku[]>();
+  for (const k of allSkus ?? []) {
+    const arr = skusBySeries.get(k.series_id) ?? [];
+    arr.push(k);
+    skusBySeries.set(k.series_id, arr);
+  }
+
+  return (brands ?? []).map((brand) => ({
+    brand,
+    series: (seriesByBrand.get(brand.id) ?? []).map((series) => ({
+      series,
+      skus: skusBySeries.get(series.id) ?? [],
+    })),
+  }));
+}
+
+/** 1つのSKUとそのFace一覧（priority降順） */
+export async function getSkuWithFaces(skuId: string): Promise<{
+  sku: Sku | null;
+  faces: FaceRecommendation[];
+  label: string;
+}> {
+  const supabase = createClient();
+  const { data: skuRow } = await supabase
+    .from("skus")
+    .select(
+      "id, series_id, color_name, color_hex, shopify_product_handle, shopify_variant_id, is_active, series(name, brands(name))"
+    )
+    .eq("id", skuId)
+    .maybeSingle<Sku & { series: { name: string; brands: { name: string } | null } | null }>();
+
+  if (!skuRow) return { sku: null, faces: [], label: "" };
+
+  const label = [skuRow.series?.brands?.name, skuRow.series?.name, skuRow.color_name]
+    .filter(Boolean)
+    .join(" ");
+
+  const { data: faces } = await supabase
+    .from("face_recommendations")
+    .select(
+      "id, sku_id, watch_model, name, category, apple_share_url, editor_comment, rating, priority, is_published"
+    )
+    .eq("sku_id", skuId)
+    .order("priority", { ascending: false })
+    .returns<FaceRecommendation[]>();
+
+  const { series: _series, ...sku } = skuRow;
+  return { sku, faces: faces ?? [], label };
+}

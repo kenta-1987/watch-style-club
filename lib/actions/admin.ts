@@ -81,6 +81,22 @@ export async function unfeaturePost(formData: FormData) {
   revalidatePath("/timeline");
 }
 
+/** 投稿に SKU を紐付け（運営がレビュー時に設定。Face は SKU から導出される） */
+export async function setPostSku(formData: FormData) {
+  const supabase = await assertAdmin();
+  const postId = String(formData.get("postId") ?? "");
+  if (!postId) return;
+  const skuId = String(formData.get("skuId") ?? "");
+
+  await supabase
+    .from("posts")
+    .update({ sku_id: skuId || null })
+    .eq("id", postId);
+
+  revalidatePath("/admin");
+  revalidatePath("/timeline");
+}
+
 export async function deletePost(formData: FormData) {
   await assertAdmin();
   const postId = String(formData.get("postId") ?? "");

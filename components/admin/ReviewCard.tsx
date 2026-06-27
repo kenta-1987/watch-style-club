@@ -6,8 +6,10 @@ import {
   deletePost,
   featurePost,
   unfeaturePost,
+  setPostSku,
 } from "@/lib/actions/admin";
 import type { PostStatus } from "@/lib/database.types";
+import type { SkuOption } from "@/lib/catalog";
 
 type ReviewPost = {
   id: string;
@@ -22,15 +24,18 @@ type ReviewPost = {
   product_handle: string | null;
   status: PostStatus;
   featured_at: string | null;
+  sku_id: string | null;
   created_at: string;
 };
 
 export function ReviewCard({
   post,
   imageUrl,
+  skuOptions,
 }: {
   post: ReviewPost;
   imageUrl: string;
+  skuOptions: SkuOption[];
 }) {
   const bandLine = [post.band_brand, post.band_name, post.color]
     .filter(Boolean)
@@ -95,6 +100,36 @@ export function ReviewCard({
           )}
         </div>
       )}
+
+      {/* SKU 紐付け（Face は SKU から導出される） */}
+      <form
+        action={setPostSku}
+        className="space-y-2 border-t border-black/10 px-4 py-3"
+      >
+        <input type="hidden" name="postId" value={post.id} />
+        <p className="text-xs font-medium text-black/50">SKU 紐付け</p>
+        <select
+          name="skuId"
+          defaultValue={post.sku_id ?? ""}
+          className="w-full rounded-lg border border-black/15 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-ink"
+        >
+          <option value="">未設定</option>
+          {skuOptions.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          className="w-full rounded-full border border-black/15 py-1.5 text-xs font-medium hover:bg-black/5"
+        >
+          SKU を保存
+        </button>
+        <p className="text-[10px] text-black/35">
+          ※ おすすめ文字盤は SKU 側（SKU/Face 画面）で管理します
+        </p>
+      </form>
 
       <div className="flex gap-2 border-t border-black/10 p-3">
         {post.status !== "approved" && (

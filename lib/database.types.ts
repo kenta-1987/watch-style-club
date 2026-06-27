@@ -93,6 +93,70 @@ export interface Database {
         Update: { follower_id?: string; followee_id?: string };
         Relationships: [];
       };
+      brands: {
+        Row: { id: string; slug: string; name: string; logo_path: string | null; created_at: string };
+        Insert: { slug: string; name: string; logo_path?: string | null };
+        Update: Partial<{ slug: string; name: string; logo_path: string | null }>;
+        Relationships: [];
+      };
+      series: {
+        Row: { id: string; brand_id: string; slug: string | null; name: string; created_at: string };
+        Insert: { brand_id: string; name: string; slug?: string | null };
+        Update: Partial<{ brand_id: string; slug: string | null; name: string }>;
+        Relationships: [];
+      };
+      skus: {
+        Row: {
+          id: string;
+          series_id: string;
+          color_name: string;
+          color_hex: string | null;
+          shopify_product_handle: string | null;
+          shopify_variant_id: string | null;
+          image_path: string | null;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          series_id: string;
+          color_name: string;
+          color_hex?: string | null;
+          shopify_product_handle?: string | null;
+          shopify_variant_id?: string | null;
+          image_path?: string | null;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["skus"]["Insert"]>;
+        Relationships: [];
+      };
+      face_recommendations: {
+        Row: {
+          id: string;
+          sku_id: string;
+          watch_model: string | null;
+          name: string;
+          category: string | null;
+          apple_share_url: string | null;
+          editor_comment: string | null;
+          rating: number | null;
+          priority: number;
+          is_published: boolean;
+          created_at: string;
+        };
+        Insert: {
+          sku_id: string;
+          name: string;
+          watch_model?: string | null;
+          category?: string | null;
+          apple_share_url?: string | null;
+          editor_comment?: string | null;
+          rating?: number | null;
+          priority?: number;
+          is_published?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["face_recommendations"]["Insert"]>;
+        Relationships: [];
+      };
       posts: {
         Row: {
           id: string;
@@ -109,6 +173,7 @@ export interface Database {
           status: PostStatus;
           like_count: number;
           featured_at: string | null;
+          sku_id: string | null;
           created_at: string;
           approved_at: string | null;
         };
@@ -124,11 +189,13 @@ export interface Database {
           product_url?: string | null;
           product_handle?: string | null;
           status?: PostStatus;
+          sku_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["posts"]["Insert"]> & {
           status?: PostStatus;
           approved_at?: string | null;
           featured_at?: string | null;
+          sku_id?: string | null;
         };
         Relationships: [];
       };

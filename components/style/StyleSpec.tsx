@@ -60,17 +60,6 @@ export function StyleSpec({
           )}
         </dd>
       </div>
-
-      <div className={rowClass}>
-        <dt className={labelClass}>FACE</dt>
-        <dd className={valueClass}>
-          {faceLabel ? (
-            <span>{faceLabel}</span>
-          ) : (
-            <span className="text-black/30">文字盤情報は準備中</span>
-          )}
-        </dd>
-      </div>
     </dl>
   );
 }
