@@ -30,15 +30,16 @@ export async function GET(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 初回ログイン判定：watch_model 未設定ならオンボーディングへ
+  // 初回判定：username（公開ID）または watch_model 未設定ならオンボーディングへ。
+  // Google 初回ログインは username が無いので必ずオンボーディングを通る。
   let needsOnboarding = true;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("watch_model")
+      .select("username, watch_model")
       .eq("id", user.id)
-      .single<{ watch_model: string | null }>();
-    needsOnboarding = !profile?.watch_model;
+      .single<{ username: string | null; watch_model: string | null }>();
+    needsOnboarding = !profile?.username || !profile?.watch_model;
   }
 
   if (needsOnboarding) {

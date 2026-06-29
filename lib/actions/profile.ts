@@ -6,7 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 
 export type ProfileFormState = { error: string };
 
-/** オンボーディング：ニックネーム・Watchモデル・バンドを保存 */
+const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
+
+/** オンボーディング：username（初回のみ）・表示名・Watchモデル・バンドを保存 */
 export async function updateProfile(
   _prev: ProfileFormState,
   formData: FormData
@@ -17,24 +19,55 @@ export async function updateProfile(
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const nickname = String(formData.get("nickname") ?? "").trim();
+  const display_name = String(formData.get("display_name") ?? "").trim();
   const watch_model = String(formData.get("watch_model") ?? "").trim();
   const current_band = String(formData.get("current_band") ?? "").trim();
   const next = String(formData.get("redirect") ?? "/") || "/";
 
-  if (!nickname) return { error: "ニックネームを入力してください。" };
-  if (nickname.length > 30) return { error: "ニックネームは30文字以内で入力してください。" };
+  if (!display_name) return { error: "表示名を入力してください。" };
+  if (display_name.length > 30) return { error: "表示名は30文字以内で入力してください。" };
   if (!watch_model) return { error: "Apple Watch のモデルを選択してください。" };
 
-  const { error } = await supabase
+  // 現在の username を確認（Google初回などで未設定なら設定する。既存は変更不可）
+  const { data: prof } = await supabase
     .from("profiles")
-    .update({
-      nickname,
-      watch_model,
-      current_band: current_band || null,
-    })
-    .eq("id", user.id);
+    .select("username")
+    .eq("id", user.id)
+    .single<{ username: string | null }>();
 
+  const patch: {
+    display_name: string;
+    nickname: string;
+    watch_model: string;
+    current_band: string | null;
+    username?: string;
+  } = {
+    display_name,
+    nickname: display_name,
+    watch_model,
+    current_band: current_band || null,
+  };
+
+  if (!prof?.username) {
+    const username = String(formData.get("username") ?? "")
+      .trim()
+      .toLowerCase();
+    if (!USERNAME_RE.test(username)) {
+      return { error: "ユーザーIDは半角英小文字・数字・_ の3〜20文字で入力してください。" };
+    }
+    // 一意チェック（profiles は公開readのため通常クライアントで確認可。unique index が最終担保）
+    const { data: taken } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", username)
+      .maybeSingle<{ id: string }>();
+    if (taken && taken.id !== user.id) {
+      return { error: "このユーザーIDは既に使われています。" };
+    }
+    patch.username = username;
+  }
+
+  const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
   if (error) return { error: `保存に失敗しました：${error.message}` };
 
   revalidatePath("/", "layout");

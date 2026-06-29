@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signUpWithUsername } from "@/lib/actions/auth";
+import { GoogleButton } from "@/components/auth/GoogleButton";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -63,7 +64,17 @@ export default function SignupPage() {
         ユーザーIDとパスワードでアカウントを作成します。
       </p>
 
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+      <div className="mt-6">
+        <GoogleButton redirect="/onboarding" />
+      </div>
+
+      <div className="my-5 flex items-center gap-3 text-xs text-black/35">
+        <span className="h-px flex-1 bg-black/10" />
+        またはメールで登録
+        <span className="h-px flex-1 bg-black/10" />
+      </div>
+
+      <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium">
             ユーザーID <span className="text-black/40">（変更できません）</span>

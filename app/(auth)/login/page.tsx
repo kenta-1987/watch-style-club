@@ -4,6 +4,7 @@ import { Suspense, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { loginWithUsername } from "@/lib/actions/auth";
+import { GoogleButton } from "@/components/auth/GoogleButton";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -34,7 +35,17 @@ function LoginForm() {
         ユーザーIDとパスワードでログインします。
       </p>
 
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+      <div className="mt-6">
+        <GoogleButton redirect={redirect} />
+      </div>
+
+      <div className="my-5 flex items-center gap-3 text-xs text-black/35">
+        <span className="h-px flex-1 bg-black/10" />
+        または
+        <span className="h-px flex-1 bg-black/10" />
+      </div>
+
+      <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium">ユーザーID</label>
           <div className="mt-1 flex items-center rounded-lg border border-black/15 px-3 focus-within:border-ink">

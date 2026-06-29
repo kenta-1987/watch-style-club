@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { updateProfile, type ProfileFormState } from "@/lib/actions/profile";
 
@@ -18,31 +19,68 @@ function SubmitButton() {
   );
 }
 
+const inputClass =
+  "mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm outline-none focus:border-ink";
+
 export function OnboardingForm({
-  defaultNickname,
+  needsUsername,
+  suggestedUsername,
+  defaultDisplayName,
   models,
   redirect,
 }: {
-  defaultNickname: string;
+  needsUsername: boolean;
+  suggestedUsername: string;
+  defaultDisplayName: string;
   models: string[];
   redirect: string;
 }) {
   const [state, formAction] = useFormState(updateProfile, initialState);
+  const [username, setUsername] = useState(suggestedUsername);
+  const usernameOk = !needsUsername || /^[a-z0-9_]{3,20}$/.test(username);
 
   return (
     <form action={formAction} className="mt-6 space-y-4">
       <input type="hidden" name="redirect" value={redirect} />
 
+      {needsUsername && (
+        <div>
+          <label className="block text-sm font-medium">
+            ユーザーID <span className="text-black/40">（変更できません）</span>
+          </label>
+          <div className="mt-1 flex items-center rounded-lg border border-black/15 px-3 focus-within:border-ink">
+            <span className="text-sm text-black/40">@</span>
+            <input
+              type="text"
+              name="username"
+              required
+              autoCapitalize="none"
+              autoCorrect="off"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase())}
+              placeholder="kenta1987"
+              className="w-full bg-transparent px-1.5 py-2 text-sm outline-none"
+            />
+          </div>
+          <p className="mt-1 text-xs text-black/40">
+            半角英小文字・数字・_ の3〜20文字。外部に表示される唯一のIDです。
+            {username && !usernameOk && (
+              <span className="ml-1 text-red-500">形式が正しくありません</span>
+            )}
+          </p>
+        </div>
+      )}
+
       <div>
-        <label className="block text-sm font-medium">ニックネーム</label>
+        <label className="block text-sm font-medium">表示名</label>
         <input
           type="text"
-          name="nickname"
+          name="display_name"
           required
           maxLength={30}
-          defaultValue={defaultNickname}
-          placeholder="例：watch_lover"
-          className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm outline-none focus:border-ink"
+          defaultValue={defaultDisplayName}
+          placeholder="例：Kenta"
+          className={inputClass}
         />
       </div>
 
@@ -74,7 +112,7 @@ export function OnboardingForm({
           name="current_band"
           maxLength={60}
           placeholder="例：Campagne Sélection ナイロンバンド"
-          className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm outline-none focus:border-ink"
+          className={inputClass}
         />
       </div>
 
