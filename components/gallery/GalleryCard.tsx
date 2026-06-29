@@ -11,6 +11,7 @@ type GalleryCardPost = {
   comment: string | null;
   product_url: string | null;
   product_handle: string | null;
+  skuHandle: string | null;
   author: PostAuthor;
 };
 
@@ -57,7 +58,14 @@ export function GalleryCard({
           </p>
         )}
         <p className="text-xs text-black/50">{post.watch_model}</p>
-        {bandLine && <p className="text-xs text-black/50">{bandLine}</p>}
+        {bandLine &&
+          (post.skuHandle ? (
+            <Link href={`/sku/${post.skuHandle}`} className="text-xs text-black/50 hover:underline">
+              {bandLine}
+            </Link>
+          ) : (
+            <p className="text-xs text-black/50">{bandLine}</p>
+          ))}
         {post.comment && (
           <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-black/80">
             {post.comment}

@@ -21,7 +21,18 @@ export default async function SkuFacesPage({
       <Link href="/admin/skus" className="text-sm text-black/50 hover:text-ink">
         ← SKU一覧
       </Link>
-      <h1 className="mt-2 text-2xl font-semibold">{label}</h1>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <h1 className="text-2xl font-semibold">{label}</h1>
+        {sku.shopify_product_handle && (
+          <Link
+            href={`/sku/${sku.shopify_product_handle}`}
+            target="_blank"
+            className="shrink-0 text-sm text-black/50 hover:text-ink"
+          >
+            公開ページ ↗
+          </Link>
+        )}
+      </div>
       <p className="mt-1 text-xs text-black/45">
         {sku.shopify_product_handle
           ? `Shopify: ${sku.shopify_product_handle}`

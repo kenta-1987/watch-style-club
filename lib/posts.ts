@@ -48,22 +48,24 @@ export type RankedPost = PublicPost & { score: number };
 // posts↔profiles は user_id 以外に likes/bookmarks 経由の関係もあり曖昧になるため、
 // FK名で明示（profiles!posts_user_id_fkey）。
 const PUBLIC_COLUMNS =
-  "id, user_id, nickname, watch_model, band_brand, band_name, color, comment, product_url, product_handle, image_path, like_count, featured_at, sku_id, created_at, profiles!posts_user_id_fkey(username, display_name, avatar_path)";
+  "id, user_id, nickname, watch_model, band_brand, band_name, color, comment, product_url, product_handle, image_path, like_count, featured_at, sku_id, created_at, profiles!posts_user_id_fkey(username, display_name, avatar_path), skus(shopify_product_handle)";
 
-type RawPost = Omit<PublicPost, "author" | "recommendedFace"> & {
+type RawPost = Omit<PublicPost, "author" | "recommendedFace" | "skuHandle"> & {
   user_id: string;
   profiles: {
     username: string | null;
     display_name: string | null;
     avatar_path: string | null;
   } | null;
+  skus: { shopify_product_handle: string | null } | null;
 };
 
-/** DB行（profiles 埋め込み）を PublicPost にフラット化 */
+/** DB行（profiles / skus 埋め込み）を PublicPost にフラット化 */
 function mapPost(r: RawPost): PublicPost {
-  const { user_id, profiles, ...rest } = r;
+  const { user_id, profiles, skus, ...rest } = r;
   return {
     ...rest,
+    skuHandle: skus?.shopify_product_handle ?? null,
     author: {
       userId: user_id,
       username: profiles?.username ?? null,
@@ -136,6 +138,7 @@ export type ApprovedPostsOptions = {
   brand?: string;
   color?: string;
   userId?: string;
+  skuId?: string;
   limit?: number;
 };
 
@@ -159,6 +162,7 @@ export async function getApprovedPosts(opts: ApprovedPostsOptions = {}): Promise
   if (opts.brand) query = query.eq("band_brand", opts.brand);
   if (opts.color) query = query.eq("color", opts.color);
   if (opts.userId) query = query.eq("user_id", opts.userId);
+  if (opts.skuId) query = query.eq("sku_id", opts.skuId);
   if (opts.limit) query = query.limit(opts.limit);
 
   const { data } = await query.returns<RawPost[]>();

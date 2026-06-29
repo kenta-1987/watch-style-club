@@ -57,7 +57,7 @@ export default async function SkusPage() {
 
                   <ul className="mt-2 flex flex-wrap gap-2">
                     {skus.map((sku) => (
-                      <li key={sku.id}>
+                      <li key={sku.id} className="inline-flex items-center gap-1">
                         <Link
                           href={`/admin/skus/${sku.id}`}
                           className="inline-flex items-center gap-1.5 rounded-full border border-black/15 bg-white px-3 py-1.5 text-xs hover:bg-black/[0.03]"
@@ -70,6 +70,16 @@ export default async function SkusPage() {
                           )}
                           {sku.color_name}
                         </Link>
+                        {sku.shopify_product_handle && (
+                          <Link
+                            href={`/sku/${sku.shopify_product_handle}`}
+                            target="_blank"
+                            className="text-[11px] text-black/40 hover:text-ink"
+                            title="公開ページを開く"
+                          >
+                            公開↗
+                          </Link>
+                        )}
                       </li>
                     ))}
                   </ul>

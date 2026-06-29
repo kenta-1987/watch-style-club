@@ -10,6 +10,7 @@ export type Sku = {
   color_hex: string | null;
   shopify_product_handle: string | null;
   shopify_variant_id: string | null;
+  image_path: string | null;
   is_active: boolean;
 };
 
@@ -90,7 +91,7 @@ export async function getCatalogTree(): Promise<CatalogTree> {
     supabase
       .from("skus")
       .select(
-        "id, series_id, color_name, color_hex, shopify_product_handle, shopify_variant_id, is_active"
+        "id, series_id, color_name, color_hex, shopify_product_handle, shopify_variant_id, image_path, is_active"
       )
       .order("created_at", { ascending: true })
       .returns<Sku[]>(),
@@ -118,6 +119,59 @@ export async function getCatalogTree(): Promise<CatalogTree> {
   }));
 }
 
+export type SkuPage = {
+  sku: Sku;
+  brandName: string | null;
+  brandSlug: string | null;
+  seriesName: string | null;
+  label: string;
+  faces: FaceRecommendation[];
+};
+
+/**
+ * 公開Productページ用：shopify_product_handle から SKU を解決。
+ * 現状は 1 handle = 1 SKU 前提（最初の1件）。将来 variant_id で多SKU対応に拡張可能。
+ */
+export async function getSkuPageByHandle(handle: string): Promise<SkuPage | null> {
+  const supabase = createClient();
+  const { data: skuRow } = await supabase
+    .from("skus")
+    .select(
+      "id, series_id, color_name, color_hex, shopify_product_handle, shopify_variant_id, is_active, image_path, series(name, slug, brands(name, slug))"
+    )
+    .eq("shopify_product_handle", handle)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle<
+      Sku & {
+        image_path: string | null;
+        series: { name: string; slug: string | null; brands: { name: string; slug: string } | null } | null;
+      }
+    >();
+
+  if (!skuRow) return null;
+
+  const { data: faces } = await supabase
+    .from("face_recommendations")
+    .select(
+      "id, sku_id, watch_model, name, category, apple_share_url, editor_comment, rating, priority, is_published"
+    )
+    .eq("sku_id", skuRow.id)
+    .eq("is_published", true)
+    .order("priority", { ascending: false })
+    .returns<FaceRecommendation[]>();
+
+  const { series, ...sku } = skuRow;
+  return {
+    sku,
+    brandName: series?.brands?.name ?? null,
+    brandSlug: series?.brands?.slug ?? null,
+    seriesName: series?.name ?? null,
+    label: [series?.brands?.name, series?.name, skuRow.color_name].filter(Boolean).join(" "),
+    faces: faces ?? [],
+  };
+}
+
 /** 1つのSKUとそのFace一覧（priority降順） */
 export async function getSkuWithFaces(skuId: string): Promise<{
   sku: Sku | null;
@@ -128,7 +182,7 @@ export async function getSkuWithFaces(skuId: string): Promise<{
   const { data: skuRow } = await supabase
     .from("skus")
     .select(
-      "id, series_id, color_name, color_hex, shopify_product_handle, shopify_variant_id, is_active, series(name, brands(name))"
+      "id, series_id, color_name, color_hex, shopify_product_handle, shopify_variant_id, image_path, is_active, series(name, brands(name))"
     )
     .eq("id", skuId)
     .maybeSingle<Sku & { series: { name: string; brands: { name: string } | null } | null }>();

@@ -42,7 +42,14 @@ export function StyleSpec({
       <div className={rowClass}>
         <dt className={labelClass}>BAND</dt>
         <dd className={valueClass}>
-          {bandParts.length > 0 ? (
+          {bandParts.length === 0 ? (
+            <span className="text-black/30">—</span>
+          ) : post.skuHandle ? (
+            // SKU 紐付け済み → Product ページへ
+            <Link href={`/sku/${post.skuHandle}`} className="hover:underline">
+              {bandParts.join(" / ")}
+            </Link>
+          ) : (
             <span>
               {post.band_brand ? (
                 <Link
@@ -55,8 +62,6 @@ export function StyleSpec({
               {post.band_name ? ` ${post.band_name}` : ""}
               {post.color ? ` / ${post.color}` : ""}
             </span>
-          ) : (
-            <span className="text-black/30">—</span>
           )}
         </dd>
       </div>
