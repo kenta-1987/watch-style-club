@@ -280,6 +280,70 @@ export interface Database {
         Update: Partial<{ label: string; sort_order: number }>;
         Relationships: [];
       };
+      // ===== Phase 5: Point Engine（Style Points / カテゴリ非依存）=====
+      // 注: Style Points と将来の「Style Score（信用スコア）」は別概念。Score は未実装。
+      point_accounts: {
+        Row: {
+          user_id: string;
+          balance: number;
+          lifetime_earned: number;
+          lifetime_spent: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          balance?: number;
+          lifetime_earned?: number;
+          lifetime_spent?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["point_accounts"]["Insert"]>;
+        Relationships: [];
+      };
+      point_ledger: {
+        Row: {
+          id: string;
+          user_id: string;
+          delta: number;
+          reason: string;
+          source_type: string;
+          source_id: string | null;
+          campaign_id: string | null;
+          metadata: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          delta: number;
+          reason: string;
+          source_type: string;
+          source_id?: string | null;
+          campaign_id?: string | null;
+          metadata?: Record<string, unknown>;
+        };
+        Update: Partial<Database["public"]["Tables"]["point_ledger"]["Insert"]>;
+        Relationships: [];
+      };
+      point_rules: {
+        Row: {
+          id: string;
+          code: string;
+          name: string;
+          points: number;
+          is_active: boolean;
+          description: string | null;
+          created_at: string;
+        };
+        Insert: {
+          code: string;
+          name: string;
+          points: number;
+          is_active?: boolean;
+          description?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["point_rules"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -288,6 +352,21 @@ export interface Database {
       get_ranking: {
         Args: { p_period: string; p_limit?: number };
         Returns: { post_id: string; score: number }[];
+      };
+      award_points: {
+        Args: {
+          p_user_id: string;
+          p_reason: string;
+          p_source_type: string;
+          p_source_id?: string | null;
+          p_metadata?: Record<string, unknown>;
+          p_campaign_id?: string | null;
+        };
+        Returns: { awarded: boolean; delta: number; new_balance: number }[];
+      };
+      public_points: {
+        Args: { p_user_id: string };
+        Returns: { balance: number; lifetime_earned: number }[];
       };
     };
     Enums: Record<string, never>;

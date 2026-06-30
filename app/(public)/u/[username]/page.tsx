@@ -7,6 +7,7 @@ import {
   getCollections,
 } from "@/lib/profile-data";
 import { getApprovedPosts, getStylesByIds } from "@/lib/posts";
+import { getPublicPoints } from "@/lib/points";
 import { avatarUrl } from "@/lib/avatar";
 import { StyleGrid } from "@/components/profile/StyleGrid";
 
@@ -54,11 +55,13 @@ export default async function ProfilePage({
     stats,
     collections,
     { posts: styles, signedUrls: styleUrls },
+    points,
   ] = await Promise.all([
     supabase.auth.getUser(),
     getProfileStats(profile.id),
     getCollections(profile.id),
     getApprovedPosts({ userId: profile.id, limit: 60 }),
+    getPublicPoints(profile.id),
   ]);
 
   const isOwner = userData.user?.id === profile.id;
@@ -107,10 +110,11 @@ export default async function ProfilePage({
             )}
           </div>
 
-          <div className="mt-3 flex gap-6">
+          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
             <Stat label="Style" value={stats.styleCount} />
             <Stat label="獲得Like" value={stats.totalLikes} />
             <Stat label="Editor's Pick" value={stats.featuredCount} />
+            <Stat label="Style Points" value={points.balance} />
           </div>
         </div>
       </div>

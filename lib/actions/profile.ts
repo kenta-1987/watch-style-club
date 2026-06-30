@@ -3,10 +3,45 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { awardPoints } from "@/lib/points";
 
 export type ProfileFormState = { error: string };
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
+
+/**
+ * プロフィール完成ボーナス（初回1回）。
+ * 完成条件: username / display_name / favorite_watch / bio すべて入力済み。
+ * source_type='profile', source_id=userId で一意 → 何度保存しても1回だけ付与。
+ * ※ favorite_watch は現状 Apple Watch 文脈の項目だが、ルールコード自体はカテゴリ非依存。
+ *   多カテゴリ展開時は「完成条件」だけ調整すればよい（Point Engine は汎用）。
+ */
+async function maybeAwardProfileCompleted(
+  supabase: ReturnType<typeof createClient>,
+  userId: string
+): Promise<void> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("username, display_name, favorite_watch, bio")
+    .eq("id", userId)
+    .maybeSingle<{
+      username: string | null;
+      display_name: string | null;
+      favorite_watch: string | null;
+      bio: string | null;
+    }>();
+  if (!data) return;
+  const complete =
+    !!data.username?.trim() &&
+    !!data.display_name?.trim() &&
+    !!data.favorite_watch?.trim() &&
+    !!data.bio?.trim();
+  if (!complete) return;
+  await awardPoints(userId, "profile_completed", {
+    sourceType: "profile",
+    sourceId: userId,
+  });
+}
 
 /** オンボーディング：username（初回のみ）・表示名・Watchモデル・バンドを保存 */
 export async function updateProfile(
@@ -122,6 +157,7 @@ export async function updateMyProfile(formData: FormData): Promise<void> {
   }
 
   await supabase.from("profiles").update(patch).eq("id", user.id);
+  await maybeAwardProfileCompleted(supabase, user.id);
   await revalidateProfile(supabase, user.id);
 }
 

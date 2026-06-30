@@ -7,10 +7,13 @@ export function HeaderUserMenu({
   username,
   name,
   avatar,
+  points,
 }: {
   username: string | null;
   name: string;
   avatar: string | null;
+  /** 保有 Style Points（SP）。購入ポイントではなく貢献ポイント */
+  points?: number;
 }) {
   const [open, setOpen] = useState(false);
   const profileHref = username ? `/u/${username}` : "/settings";
@@ -45,6 +48,9 @@ export function HeaderUserMenu({
               {username && (
                 <p className="truncate text-xs text-black/45">@{username}</p>
               )}
+              <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-ink/[0.06] px-2 py-0.5 text-xs font-semibold tabular-nums text-ink">
+                {(points ?? 0).toLocaleString("ja-JP")} SP
+              </p>
             </div>
             <Link
               href={profileHref}

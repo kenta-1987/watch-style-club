@@ -102,6 +102,9 @@ export default async function AdminPage({
           >
             キャンペーン応募 →
           </Link>
+          <Link href="/admin/points" className="text-sm text-black/50 hover:text-ink">
+            ポイント →
+          </Link>
         </div>
       </div>
       <p className="mt-1 text-sm text-black/50">管理者専用</p>
