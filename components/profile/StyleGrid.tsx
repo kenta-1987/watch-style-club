@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { PublicPost } from "@/lib/posts";
+import { CoverMedia } from "@/components/media/CoverMedia";
 
 /** プロフィール用の Style サムネイルグリッド（Instagram的） */
 export function StyleGrid({
@@ -24,15 +25,13 @@ export function StyleGrid({
         return (
           <Link key={p.id} href={`/p/${p.id}`} className="block">
             <div className="relative aspect-square overflow-hidden rounded-lg bg-black/5">
-              {signedUrls[p.image_path] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={signedUrls[p.image_path]}
-                  alt={`${name} の Style`}
-                  loading="lazy"
-                  className="h-full w-full object-cover"
-                />
-              ) : null}
+              <CoverMedia
+                url={signedUrls[p.image_path] ?? ""}
+                type={p.coverType}
+                duration={p.coverDuration}
+                count={p.mediaCount}
+                alt={`${name} の Style`}
+              />
               {p.featured_at && (
                 <span className="absolute left-1 top-1 rounded-full bg-ink/90 px-1.5 py-0.5 text-[9px] font-medium text-white">
                   Pick

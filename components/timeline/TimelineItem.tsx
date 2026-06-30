@@ -1,9 +1,13 @@
-import type { PublicPost } from "@/lib/posts";
+import Link from "next/link";
+import type { PublicPost, MediaItem } from "@/lib/posts";
 import { AuthorHeader } from "@/components/timeline/AuthorHeader";
 import { LikeButton } from "@/components/timeline/LikeButton";
 import { BookmarkButton } from "@/components/timeline/BookmarkButton";
 import { StyleSpec } from "@/components/style/StyleSpec";
 import { RecommendedFace } from "@/components/style/RecommendedFace";
+import { CoverMedia } from "@/components/media/CoverMedia";
+import { MediaCarousel } from "@/components/media/MediaCarousel";
+import { shopUrlForHandle } from "@/lib/shopify";
 
 export function TimelineItem({
   post,
@@ -11,14 +15,33 @@ export function TimelineItem({
   liked,
   saved,
   isAuthed,
+  media,
 }: {
   post: PublicPost;
   imageUrl: string;
   liked: boolean;
   saved: boolean;
   isAuthed: boolean;
+  /** 詳細ページ（/p/[id]）のみ：全メディアを渡すとカルーセル表示 */
+  media?: MediaItem[];
 }) {
   const featured = !!post.featured_at;
+  const alt = `${post.author.displayName ?? post.nickname} の Apple Watch Style`;
+  const shopUrl = shopUrlForHandle(post.skuHandle) ?? post.product_url;
+
+  // フィード：カバー1枚。複数 or 動画なら /p/[id] へ誘導。
+  const cover = (
+    <div className="relative aspect-[4/5] w-full overflow-hidden bg-black/5">
+      <CoverMedia
+        url={imageUrl}
+        type={post.coverType}
+        duration={post.coverDuration}
+        count={post.mediaCount}
+        alt={alt}
+      />
+    </div>
+  );
+  const linkCover = post.mediaCount > 1 || post.coverType === "video";
 
   return (
     <article className="overflow-hidden rounded-2xl border border-black/10 bg-white">
@@ -29,22 +52,16 @@ export function TimelineItem({
         featured={featured}
       />
 
-      {/* Style の写真 */}
-      <div className="aspect-[4/5] w-full bg-black/5">
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageUrl}
-            alt={`${post.nickname} の Apple Watch Style`}
-            loading="lazy"
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-black/30">
-            画像を読み込めません
-          </div>
-        )}
-      </div>
+      {/* メディア：詳細はカルーセル、フィードはカバー */}
+      {media ? (
+        <MediaCarousel media={media} alt={alt} />
+      ) : linkCover ? (
+        <Link href={`/p/${post.id}`} className="block">
+          {cover}
+        </Link>
+      ) : (
+        cover
+      )}
 
       {/* アクションバー：いいね / 保存 */}
       <div className="flex items-center justify-between px-4 pt-3">
@@ -71,10 +88,10 @@ export function TimelineItem({
         {/* ⭐ おすすめ文字盤 → 🟢 この文字盤を追加 */}
         <RecommendedFace post={post} />
 
-        {/* 🛒 このバンドを見る */}
-        {post.product_url && (
+        {/* 🛒 このバンドを見る（SKUがあれば自動生成、無ければ自由入力URL） */}
+        {shopUrl && (
           <a
-            href={post.product_url}
+            href={shopUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-1.5 rounded-full bg-ink py-2.5 text-sm font-semibold text-white hover:opacity-80"

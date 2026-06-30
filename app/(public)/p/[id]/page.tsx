@@ -8,7 +8,7 @@ import { TimelineItem } from "@/components/timeline/TimelineItem";
 export const dynamic = "force-dynamic";
 
 export default async function PostPage({ params }: { params: { id: string } }) {
-  const { post, signedUrls } = await getStyleById(params.id);
+  const { post, signedUrls, media } = await getStyleById(params.id);
   if (!post) notFound();
 
   const supabase = createClient();
@@ -45,6 +45,7 @@ export default async function PostPage({ params }: { params: { id: string } }) {
           liked={liked}
           saved={saved}
           isAuthed={isAuthed}
+          media={media}
         />
       </div>
     </div>

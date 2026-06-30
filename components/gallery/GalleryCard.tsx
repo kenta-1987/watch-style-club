@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { PostAuthor } from "@/lib/posts";
+import { CoverMedia } from "@/components/media/CoverMedia";
 
 type GalleryCardPost = {
   id: string;
@@ -12,6 +13,9 @@ type GalleryCardPost = {
   product_url: string | null;
   product_handle: string | null;
   skuHandle: string | null;
+  coverType: "image" | "video";
+  coverDuration: number | null;
+  mediaCount: number;
   author: PostAuthor;
 };
 
@@ -28,20 +32,14 @@ export function GalleryCard({
 
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white">
-      <div className="aspect-square w-full bg-black/5">
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageUrl}
-            alt={`${post.nickname} の着画`}
-            loading="lazy"
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-black/30">
-            画像を読み込めません
-          </div>
-        )}
+      <div className="relative aspect-square w-full overflow-hidden bg-black/5">
+        <CoverMedia
+          url={imageUrl}
+          type={post.coverType}
+          duration={post.coverDuration}
+          count={post.mediaCount}
+          alt={`${post.author.displayName ?? post.nickname} の Style`}
+        />
       </div>
 
       <div className="flex flex-1 flex-col gap-1 p-3 text-sm">

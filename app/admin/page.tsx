@@ -56,7 +56,34 @@ export default async function AdminPage({
   ]);
 
   const list = posts ?? [];
-  const signedUrls = await getSignedUrls(list.map((p) => p.image_path));
+
+  // メディア（複数・動画）をまとめて取得し署名URL化
+  const { data: mediaRows } = await supabase
+    .from("post_media")
+    .select("post_id, media_type, storage_path, sort_order")
+    .in("post_id", list.map((p) => p.id))
+    .order("sort_order", { ascending: true })
+    .returns<
+      { post_id: string; media_type: "image" | "video"; storage_path: string; sort_order: number }[]
+    >();
+
+  const signedUrls = await getSignedUrls([
+    ...list.map((p) => p.image_path),
+    ...(mediaRows ?? []).map((m) => m.storage_path),
+  ]);
+
+  const mediaByPost = new Map<string, { type: "image" | "video"; url: string }[]>();
+  for (const m of mediaRows ?? []) {
+    const arr = mediaByPost.get(m.post_id) ?? [];
+    arr.push({ type: m.media_type, url: signedUrls[m.storage_path] ?? "" });
+    mediaByPost.set(m.post_id, arr);
+  }
+  // post_media が無い旧投稿は image_path を1枚として扱う
+  function mediaFor(p: AdminPost) {
+    return (
+      mediaByPost.get(p.id) ?? [{ type: "image" as const, url: signedUrls[p.image_path] ?? "" }]
+    );
+  }
 
   return (
     <div>
@@ -110,7 +137,7 @@ export default async function AdminPage({
             <ReviewCard
               key={post.id}
               post={post}
-              imageUrl={signedUrls[post.image_path] ?? ""}
+              media={mediaFor(post)}
               skuOptions={skuOptions}
             />
           ))}

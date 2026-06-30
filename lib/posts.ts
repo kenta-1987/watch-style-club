@@ -19,6 +19,16 @@ export type RecommendedFaceView = {
   rating: number | null;
 };
 
+/** 1メディア（詳細ページ用・署名URL付き） */
+export type MediaItem = {
+  type: "image" | "video";
+  path: string;
+  signedUrl: string;
+  width: number | null;
+  height: number | null;
+  durationSeconds: number | null;
+};
+
 /** ギャラリー・タイムライン共通の公開投稿型 */
 export type PublicPost = {
   id: string;
@@ -40,6 +50,11 @@ export type PublicPost = {
   author: PostAuthor;
   /** post.sku → face_recommendations から導出（編集部管理・投稿者は入力しない） */
   recommendedFace: RecommendedFaceView | null;
+  /** カバー（=image_path）のメタ。post_media があれば sort_order=0 のもの、無ければ画像扱い。 */
+  coverType: "image" | "video";
+  coverDuration: number | null;
+  mediaCount: number;
+  hasVideo: boolean;
 };
 
 /** ランキング表示用：公開投稿＋期間内スコア */
@@ -73,7 +88,52 @@ function mapPost(r: RawPost): PublicPost {
       avatarPath: profiles?.avatar_path ?? null,
     },
     recommendedFace: null,
+    coverType: "image",
+    coverDuration: null,
+    mediaCount: 1,
+    hasVideo: false,
   };
+}
+
+type MediaRow = {
+  post_id: string;
+  media_type: "image" | "video";
+  storage_path: string;
+  width: number | null;
+  height: number | null;
+  duration_seconds: number | null;
+  sort_order: number;
+};
+
+/** 投稿群にカバー種別・メディア数・動画有無を付与（post_media をバッチ取得） */
+async function attachCoverInfo(
+  supabase: ReturnType<typeof createClient>,
+  posts: PublicPost[]
+): Promise<void> {
+  const ids = posts.map((p) => p.id);
+  if (ids.length === 0) return;
+  const { data } = await supabase
+    .from("post_media")
+    .select("post_id, media_type, storage_path, width, height, duration_seconds, sort_order")
+    .in("post_id", ids)
+    .order("sort_order", { ascending: true })
+    .returns<MediaRow[]>();
+
+  const byPost = new Map<string, MediaRow[]>();
+  for (const m of data ?? []) {
+    const arr = byPost.get(m.post_id) ?? [];
+    arr.push(m);
+    byPost.set(m.post_id, arr);
+  }
+  for (const p of posts) {
+    const list = byPost.get(p.id);
+    if (!list || list.length === 0) continue; // 旧投稿：image_path を画像カバー扱い（既定値）
+    const cover = list[0];
+    p.coverType = cover.media_type;
+    p.coverDuration = cover.duration_seconds;
+    p.mediaCount = list.length;
+    p.hasVideo = list.some((m) => m.media_type === "video");
+  }
 }
 
 type FaceRow = {
@@ -167,7 +227,10 @@ export async function getApprovedPosts(opts: ApprovedPostsOptions = {}): Promise
 
   const { data } = await query.returns<RawPost[]>();
   const posts = (data ?? []).map(mapPost);
-  await attachRecommendedFaces(supabase, posts);
+  await Promise.all([
+    attachRecommendedFaces(supabase, posts),
+    attachCoverInfo(supabase, posts),
+  ]);
   const signedUrls = await getSignedUrls(posts.map((p) => p.image_path));
 
   return { posts, signedUrls };
@@ -189,7 +252,10 @@ export async function getFeaturedPosts(limit = 6): Promise<{
     .returns<RawPost[]>();
 
   const posts = (data ?? []).map(mapPost);
-  await attachRecommendedFaces(supabase, posts);
+  await Promise.all([
+    attachRecommendedFaces(supabase, posts),
+    attachCoverInfo(supabase, posts),
+  ]);
   const signedUrls = await getSignedUrls(posts.map((p) => p.image_path));
   return { posts, signedUrls };
 }
@@ -209,15 +275,19 @@ export async function getStylesByIds(ids: string[]): Promise<{
     .order("created_at", { ascending: false })
     .returns<RawPost[]>();
   const posts = (data ?? []).map(mapPost);
-  await attachRecommendedFaces(supabase, posts);
+  await Promise.all([
+    attachRecommendedFaces(supabase, posts),
+    attachCoverInfo(supabase, posts),
+  ]);
   const signedUrls = await getSignedUrls(posts.map((p) => p.image_path));
   return { posts, signedUrls };
 }
 
-/** 単一の承認済み投稿（/p/[id]）。SKU由来Face付き。 */
+/** 単一の承認済み投稿（/p/[id]）。SKU由来Face＋全メディア付き。 */
 export async function getStyleById(id: string): Promise<{
   post: PublicPost | null;
   signedUrls: Record<string, string>;
+  media: MediaItem[];
 }> {
   const supabase = createClient();
   const { data } = await supabase
@@ -226,11 +296,48 @@ export async function getStyleById(id: string): Promise<{
     .eq("id", id)
     .eq("status", "approved")
     .maybeSingle<RawPost>();
-  if (!data) return { post: null, signedUrls: {} };
+  if (!data) return { post: null, signedUrls: {}, media: [] };
   const post = mapPost(data);
-  await attachRecommendedFaces(supabase, [post]);
+
+  const [, , { data: mediaRows }] = await Promise.all([
+    attachRecommendedFaces(supabase, [post]),
+    attachCoverInfo(supabase, [post]),
+    supabase
+      .from("post_media")
+      .select("media_type, storage_path, width, height, duration_seconds, sort_order")
+      .eq("post_id", id)
+      .order("sort_order", { ascending: true })
+      .returns<Omit<MediaRow, "post_id">[]>(),
+  ]);
+
+  // post_media があれば全メディア、無ければ image_path を1枚として扱う（旧投稿互換）
+  const rows =
+    mediaRows && mediaRows.length > 0
+      ? mediaRows
+      : [
+          {
+            media_type: "image" as const,
+            storage_path: post.image_path,
+            width: null,
+            height: null,
+            duration_seconds: null,
+            sort_order: 0,
+          },
+        ];
+
+  const paths = rows.map((r) => r.storage_path);
+  const signed = await getSignedUrls(paths, 3600); // 動画再生途中の失効を避けて60分
+  const media: MediaItem[] = rows.map((r) => ({
+    type: r.media_type,
+    path: r.storage_path,
+    signedUrl: signed[r.storage_path] ?? "",
+    width: r.width,
+    height: r.height,
+    durationSeconds: r.duration_seconds,
+  }));
+
   const signedUrls = await getSignedUrls([post.image_path]);
-  return { post, signedUrls };
+  return { post, signedUrls, media };
 }
 
 /** 人気ランキング：get_ranking(期間) で並べた投稿＋スコア＋署名URL */

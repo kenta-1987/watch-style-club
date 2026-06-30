@@ -72,6 +72,9 @@ export default async function TimelinePage() {
                 id={p.id}
                 imageUrl={featured.signedUrls[p.image_path] ?? ""}
                 nickname={p.author.displayName ?? p.nickname}
+                coverType={p.coverType}
+                coverDuration={p.coverDuration}
+                mediaCount={p.mediaCount}
               />
             ))}
           </SectionRail>
@@ -92,6 +95,9 @@ export default async function TimelinePage() {
                 nickname={p.author.displayName ?? p.nickname}
                 rank={i + 1}
                 metric={`♡ ${p.score}`}
+                coverType={p.coverType}
+                coverDuration={p.coverDuration}
+                mediaCount={p.mediaCount}
               />
             ))}
           </SectionRail>

@@ -115,6 +115,7 @@ export interface Database {
           shopify_variant_id: string | null;
           image_path: string | null;
           is_active: boolean;
+          is_awj: boolean;
           created_at: string;
         };
         Insert: {
@@ -125,6 +126,7 @@ export interface Database {
           shopify_variant_id?: string | null;
           image_path?: string | null;
           is_active?: boolean;
+          is_awj?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["skus"]["Insert"]>;
         Relationships: [];
@@ -209,6 +211,30 @@ export interface Database {
         Row: { post_id: string; user_id: string; created_at: string };
         Insert: { post_id: string; user_id: string };
         Update: { post_id?: string; user_id?: string };
+        Relationships: [];
+      };
+      post_media: {
+        Row: {
+          id: string;
+          post_id: string;
+          media_type: "image" | "video";
+          storage_path: string;
+          width: number | null;
+          height: number | null;
+          duration_seconds: number | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          post_id: string;
+          media_type?: "image" | "video";
+          storage_path: string;
+          width?: number | null;
+          height?: number | null;
+          duration_seconds?: number | null;
+          sort_order?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["post_media"]["Insert"]>;
         Relationships: [];
       };
       campaigns: {

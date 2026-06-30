@@ -27,6 +27,49 @@ export type FaceRecommendation = {
   is_published: boolean;
 };
 
+// ===== 投稿フォーム用：AWJ取扱バンドの ブランド→シリーズ→カラー ツリー =====
+export type PickerSku = { id: string; colorName: string; colorHex: string | null };
+export type PickerSeries = { id: string; name: string; skus: PickerSku[] };
+export type PickerBrand = { id: string; name: string; series: PickerSeries[] };
+
+/** is_awj かつ is_active な SKU だけを ブランド→シリーズ→カラー の階層で返す */
+export async function getAwjPickerTree(): Promise<PickerBrand[]> {
+  const supabase = createClient();
+  const [{ data: skus }, { data: seriesRows }, { data: brandRows }] = await Promise.all([
+    supabase
+      .from("skus")
+      .select("id, color_name, color_hex, series_id")
+      .eq("is_awj", true)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true })
+      .returns<{ id: string; color_name: string; color_hex: string | null; series_id: string }[]>(),
+    supabase
+      .from("series")
+      .select("id, brand_id, name")
+      .order("name")
+      .returns<{ id: string; brand_id: string; name: string }[]>(),
+    supabase.from("brands").select("id, name").order("name").returns<{ id: string; name: string }[]>(),
+  ]);
+
+  const skusBySeries = new Map<string, PickerSku[]>();
+  for (const s of skus ?? []) {
+    const a = skusBySeries.get(s.series_id) ?? [];
+    a.push({ id: s.id, colorName: s.color_name, colorHex: s.color_hex });
+    skusBySeries.set(s.series_id, a);
+  }
+  const seriesByBrand = new Map<string, PickerSeries[]>();
+  for (const se of seriesRows ?? []) {
+    const sk = skusBySeries.get(se.id);
+    if (!sk || sk.length === 0) continue;
+    const a = seriesByBrand.get(se.brand_id) ?? [];
+    a.push({ id: se.id, name: se.name, skus: sk });
+    seriesByBrand.set(se.brand_id, a);
+  }
+  return (brandRows ?? [])
+    .map((b) => ({ id: b.id, name: b.name, series: seriesByBrand.get(b.id) ?? [] }))
+    .filter((b) => b.series.length > 0);
+}
+
 /** SKU 選択用のフラットリスト（ラベル = Brand Series Color） */
 export type SkuOption = { id: string; label: string };
 

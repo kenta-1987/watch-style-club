@@ -30,11 +30,11 @@ type ReviewPost = {
 
 export function ReviewCard({
   post,
-  imageUrl,
+  media,
   skuOptions,
 }: {
   post: ReviewPost;
-  imageUrl: string;
+  media: { type: "image" | "video"; url: string }[];
   skuOptions: SkuOption[];
 }) {
   const bandLine = [post.band_brand, post.band_name, post.color]
@@ -43,14 +43,35 @@ export function ReviewCard({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-black/10 bg-white">
-      <div className="aspect-square w-full bg-black/5">
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt="投稿画像" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-black/30">
-            画像を読み込めません
+      {/* メディア（複数・動画プレビュー） */}
+      <div className="flex gap-1 overflow-x-auto bg-black/5 p-1">
+        {media.length === 0 ? (
+          <div className="flex aspect-square w-full items-center justify-center text-xs text-black/30">
+            メディアなし
           </div>
+        ) : (
+          media.map((m, i) =>
+            m.type === "video" ? (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <video
+                key={i}
+                src={m.url}
+                controls
+                preload="metadata"
+                className="aspect-square w-full shrink-0 rounded bg-black object-contain"
+                style={{ maxWidth: media.length > 1 ? "70%" : "100%" }}
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={i}
+                src={m.url}
+                alt={`メディア${i + 1}`}
+                className="aspect-square shrink-0 rounded object-cover"
+                style={{ width: media.length > 1 ? "70%" : "100%" }}
+              />
+            )
+          )
         )}
       </div>
 
