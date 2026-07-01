@@ -12,3 +12,6 @@ next-env.d.ts
 .next
 node_modules
 tsconfig.tsbuildinfo
+
+# 内部引き継ぎ書：project ref・admin email・検証用パスワード等の機微情報を含むため追跡しない
+HANDOVER.md
