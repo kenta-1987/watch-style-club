@@ -6,6 +6,7 @@ import { compressToWebp, readMediaMeta } from "@/lib/image";
 import { createPost } from "@/lib/actions/posts";
 import { formatDuration } from "@/lib/format";
 import type { PickerBrand } from "@/lib/catalog";
+import type { VerifiedSkuOption } from "@/lib/verified-purchases";
 
 const MAX_MEDIA = 5;
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50MB
@@ -27,11 +28,13 @@ export function PostForm({
   defaultWatchModel,
   models,
   pickerTree,
+  verifiedSkus = [],
 }: {
   nickname: string;
   defaultWatchModel: string;
   models: string[];
   pickerTree: PickerBrand[];
+  verifiedSkus?: VerifiedSkuOption[];
 }) {
   const [watchModel, setWatchModel] = useState(defaultWatchModel);
   const [bandMode, setBandMode] = useState<"awj" | "unregistered">(
@@ -63,6 +66,13 @@ export function PostForm({
     () => seriesList.find((s) => s.id === seriesId)?.skus ?? [],
     [seriesList, seriesId]
   );
+
+  function selectVerifiedSku(v: VerifiedSkuOption) {
+    setBandMode("awj");
+    setBrandId(v.brandId);
+    setSeriesId(v.seriesId);
+    setSkuId(v.skuId);
+  }
 
   function setMediaItem(localId: string, patch: Partial<MediaDraft>) {
     setMedia((prev) => prev.map((m) => (m.localId === localId ? { ...m, ...patch } : m)));
@@ -218,6 +228,29 @@ export function PostForm({
           ))}
         </select>
       </div>
+
+      {/* 購入証明済みバンド（owned_bandsとは別データソース） */}
+      {verifiedSkus.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium">あなたが購入したバンド</label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {verifiedSkus.map((v) => (
+              <button
+                key={v.skuId}
+                type="button"
+                onClick={() => selectVerifiedSku(v)}
+                className={`rounded-full border px-3 py-1.5 text-sm ${
+                  bandMode === "awj" && skuId === v.skuId
+                    ? "border-ink bg-ink text-white"
+                    : "border-black/15 hover:bg-black/5"
+                }`}
+              >
+                {[v.brandName, v.seriesName, v.colorName].filter(Boolean).join(" ")}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 2. バンド選択 */}
       <div>

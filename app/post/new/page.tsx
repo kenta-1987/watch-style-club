@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAwjPickerTree } from "@/lib/catalog";
+import { getMyVerifiedSkus } from "@/lib/verified-purchases";
 import { PostForm } from "@/components/post/PostForm";
 
 export const dynamic = "force-dynamic";
@@ -23,9 +24,10 @@ export default async function NewPostPage() {
     redirect("/onboarding?redirect=/post/new");
   }
 
-  const [{ data: models }, pickerTree] = await Promise.all([
+  const [{ data: models }, pickerTree, verifiedSkus] = await Promise.all([
     supabase.from("watch_models").select("label").order("sort_order"),
     getAwjPickerTree(),
+    getMyVerifiedSkus(),
   ]);
 
   return (
@@ -41,6 +43,7 @@ export default async function NewPostPage() {
         defaultWatchModel={profile.watch_model}
         models={(models ?? []).map((m) => m.label)}
         pickerTree={pickerTree}
+        verifiedSkus={verifiedSkus}
       />
     </div>
   );

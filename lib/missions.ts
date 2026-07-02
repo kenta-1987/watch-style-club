@@ -14,6 +14,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { awardPoints } from "@/lib/points";
+import { hasAnyVerifiedPurchase } from "@/lib/verified-purchases";
 
 export type MissionStatus = {
   code: string;
@@ -27,11 +28,14 @@ export type MissionStatus = {
 /**
  * 表示条件（mission_definitions.visibility）の判定。
  * - 'always' / 'logged_in': 表示する（呼び出し経路は常にログイン済みユーザー向けのため、現状は同じ扱い）。
- * - 'purchased' / 'campaign_only': 判定コンテキスト（購入履歴・キャンペーン期間）が未実装のため、
- *   誤って見せてしまわないよう安全側で非表示にするプレースホルダー。判定を実装したらここに分岐を足す。
+ * - 'purchased': verified_purchases（Shopify購入証明連携 Phase 0）を1件でも持つユーザーにのみ表示。
+ * - 'campaign_only': 判定コンテキスト（キャンペーン期間）が未実装のため、誤って見せてしまわないよう
+ *   安全側で非表示にするプレースホルダー。判定を実装したらここに分岐を足す。
  */
-function isMissionVisible(visibility: string): boolean {
-  return visibility === "always" || visibility === "logged_in";
+async function isMissionVisible(visibility: string, userId: string): Promise<boolean> {
+  if (visibility === "always" || visibility === "logged_in") return true;
+  if (visibility === "purchased") return hasAnyVerifiedPurchase(userId);
+  return false;
 }
 
 export type MissionGroupStatus = {
@@ -91,8 +95,11 @@ export async function getMissionGroupStatus(
   const pointsByCode = new Map((rules ?? []).map((r) => [r.code, r.points]));
   const completedCodes = new Set((ledger ?? []).map((l) => l.reason));
 
+  const visibleFlags = await Promise.all(
+    (defs ?? []).map((d) => isMissionVisible(d.visibility, userId))
+  );
   const missions: MissionStatus[] = (defs ?? [])
-    .filter((d) => isMissionVisible(d.visibility))
+    .filter((_, i) => visibleFlags[i])
     .map((d) => ({
       code: d.code,
       name: d.name,

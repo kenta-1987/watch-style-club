@@ -373,6 +373,62 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["mission_definitions"]["Insert"]>;
         Relationships: [];
       };
+      // ===== Shopify購入証明連携 Phase 0（チャネル非依存の購入証明台帳）=====
+      // WSCが持つのは「この profile がこの sku_id を持っている」という事実のみ。
+      // 注文番号・住所・配送状況・決済状態・金額は一切保持しない。
+      verified_purchases: {
+        Row: {
+          id: string;
+          profile_id: string;
+          sku_id: string;
+          channel: string;
+          shop_domain: string | null;
+          purchased_at: string;
+          verified: boolean;
+          verification_source: string;
+          dedupe_key: string | null;
+          created_at: string;
+        };
+        Insert: {
+          profile_id: string;
+          sku_id: string;
+          channel: string;
+          shop_domain?: string | null;
+          purchased_at: string;
+          verified?: boolean;
+          verification_source: string;
+          dedupe_key?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["verified_purchases"]["Insert"]>;
+        Relationships: [];
+      };
+      // purpose 列で分岐する汎用トークン（purchase_claim 専用ではない）。
+      verification_tokens: {
+        Row: {
+          id: string;
+          token: string;
+          purpose: string;
+          target_email: string;
+          payload: Record<string, unknown>;
+          dedupe_key: string | null;
+          expires_at: string;
+          consumed_at: string | null;
+          consumed_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          token: string;
+          purpose: string;
+          target_email: string;
+          payload?: Record<string, unknown>;
+          dedupe_key?: string | null;
+          expires_at: string;
+          consumed_at?: string | null;
+          consumed_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["verification_tokens"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -396,6 +452,22 @@ export interface Database {
       public_points: {
         Args: { p_user_id: string };
         Returns: { balance: number; lifetime_earned: number }[];
+      };
+      record_verified_purchase: {
+        Args: {
+          p_profile_id: string;
+          p_sku_id: string;
+          p_channel: string;
+          p_shop_domain: string | null;
+          p_purchased_at: string;
+          p_verification_source: string;
+          p_dedupe_key?: string | null;
+        };
+        Returns: string;
+      };
+      match_user_by_email: {
+        Args: { p_email: string };
+        Returns: string | null;
       };
     };
     Enums: Record<string, never>;
