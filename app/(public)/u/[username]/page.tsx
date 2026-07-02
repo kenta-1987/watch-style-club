@@ -8,8 +8,10 @@ import {
 } from "@/lib/profile-data";
 import { getApprovedPosts, getStylesByIds } from "@/lib/posts";
 import { getPublicPoints } from "@/lib/points";
+import { getMissionGroupStatus, type MissionGroupStatus } from "@/lib/missions";
 import { avatarUrl } from "@/lib/avatar";
 import { StyleGrid } from "@/components/profile/StyleGrid";
+import { MissionCard } from "@/components/missions/MissionCard";
 
 export const dynamic = "force-dynamic";
 
@@ -68,15 +70,20 @@ export default async function ProfilePage({
   const avatar = avatarUrl(profile.avatar_path);
   const name = profile.display_name || profile.username || "guest";
 
-  // 保存したStyle（本人のみ・RLSで本人のbookmarkだけ取得できる）
+  // 保存したStyle・Welcome Mission（本人のみ）
   let saved: Awaited<ReturnType<typeof getStylesByIds>> | null = null;
+  let welcomeMission: MissionGroupStatus | null = null;
   if (isOwner) {
-    const { data: allBm } = await supabase
-      .from("post_bookmarks")
-      .select("post_id")
-      .eq("user_id", profile.id)
-      .returns<{ post_id: string }[]>();
+    const [{ data: allBm }, mission] = await Promise.all([
+      supabase
+        .from("post_bookmarks")
+        .select("post_id")
+        .eq("user_id", profile.id)
+        .returns<{ post_id: string }[]>(),
+      getMissionGroupStatus(profile.id, "welcome"),
+    ]);
     saved = await getStylesByIds((allBm ?? []).map((b) => b.post_id));
+    welcomeMission = mission.completedCount < mission.totalCount ? mission : null;
   }
 
   return (
@@ -127,6 +134,13 @@ export default async function ProfilePage({
           <span className="text-black/40">Favorite：</span>
           {profile.favorite_watch}
         </p>
+      )}
+
+      {/* Welcome Mission（本人のみ・未完了の間だけ表示） */}
+      {isOwner && welcomeMission && (
+        <div className="mt-6">
+          <MissionCard title="Welcome Mission" emoji="🎉" status={welcomeMission} />
+        </div>
       )}
 
       {/* Collection */}

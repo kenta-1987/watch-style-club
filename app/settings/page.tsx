@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMyProfile, getCollections } from "@/lib/profile-data";
 import { getMyBalance, getMyLedger, reasonLabel } from "@/lib/points";
+import { getMyMissionGroup } from "@/lib/missions";
 import { ProfileEditForm } from "@/components/profile/ProfileEditForm";
 import { CollectionManager } from "@/components/profile/CollectionManager";
+import { MissionCard } from "@/components/missions/MissionCard";
 
 export const dynamic = "force-dynamic";
 
@@ -25,10 +27,11 @@ export default async function SettingsPage() {
 
   const profile = await getMyProfile();
   if (!profile) redirect("/onboarding");
-  const [collections, balance, ledger] = await Promise.all([
+  const [collections, balance, ledger, welcomeMission] = await Promise.all([
     getCollections(user.id),
     getMyBalance(),
     getMyLedger(20),
+    getMyMissionGroup("welcome"),
   ]);
 
   return (
@@ -44,6 +47,13 @@ export default async function SettingsPage() {
           </Link>
         )}
       </div>
+
+      {/* Welcome Mission（Mission Engine の 'welcome' グループ） */}
+      {welcomeMission && (
+        <div className="mt-6">
+          <MissionCard title="Welcome Mission" emoji="🎉" status={welcomeMission} />
+        </div>
+      )}
 
       {/* プロフィール */}
       <section className="mt-6 rounded-2xl border border-black/10 bg-white p-5">

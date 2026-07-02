@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { awardMission } from "@/lib/missions";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,9 @@ export async function GET(request: NextRequest) {
       .eq("id", user.id)
       .single<{ username: string | null; watch_model: string | null }>();
     needsOnboarding = !profile?.username || !profile?.watch_model;
+
+    // Welcome Mission「会員登録」：Google OAuth / マジックリンクの初回ログインもここを通る
+    await awardMission(user.id, "welcome_signup");
   }
 
   if (needsOnboarding) {

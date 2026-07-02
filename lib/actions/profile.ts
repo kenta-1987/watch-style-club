@@ -4,15 +4,17 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { awardPoints } from "@/lib/points";
+import { awardMission } from "@/lib/missions";
 
 export type ProfileFormState = { error: string };
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
 /**
- * プロフィール完成ボーナス（初回1回）。
+ * プロフィール完成ボーナス（初回1回）＋ Welcome Mission「プロフィール完成」。
  * 完成条件: username / display_name / favorite_watch / bio すべて入力済み。
- * source_type='profile', source_id=userId で一意 → 何度保存しても1回だけ付与。
+ * - profile_completed: source_type='profile', source_id=userId で一意 → 何度保存しても1回だけ付与（通常の貢献ポイント）。
+ * - welcome_profile: Welcome Mission 側の初回オンボーディング特典。awardMission() が同条件で別枠加算する。
  * ※ favorite_watch は現状 Apple Watch 文脈の項目だが、ルールコード自体はカテゴリ非依存。
  *   多カテゴリ展開時は「完成条件」だけ調整すればよい（Point Engine は汎用）。
  */
@@ -41,6 +43,7 @@ async function maybeAwardProfileCompleted(
     sourceType: "profile",
     sourceId: userId,
   });
+  await awardMission(userId, "welcome_profile");
 }
 
 /** オンボーディング：username（初回のみ）・表示名・Watchモデル・バンドを保存 */

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { awardPoints } from "@/lib/points";
+import { awardMission } from "@/lib/missions";
 
 const BUCKET = "post-images";
 
@@ -45,6 +46,8 @@ export async function approvePost(formData: FormData) {
       sourceType: "post",
       sourceId: updated.id,
     });
+    // Welcome Mission「初回Style投稿」：source_id=userId固定のため、2件目以降の承認では no-op になる
+    await awardMission(updated.user_id, "welcome_first_style");
   }
 
   revalidatePath("/admin");
@@ -221,6 +224,15 @@ export async function deletePointRule(formData: FormData) {
     .eq("reason", rule.code);
   if ((count ?? 0) > 0) {
     throw new Error("このルールは既に付与履歴があるため削除できません（OFFにしてください）");
+  }
+
+  // ミッション定義（Welcome Mission等）から参照されていれば削除させない（ミッションが壊れるため）
+  const { count: missionCount } = await supabase
+    .from("mission_definitions")
+    .select("id", { count: "exact", head: true })
+    .eq("code", rule.code);
+  if ((missionCount ?? 0) > 0) {
+    throw new Error("このルールはミッションで使用中のため削除できません（OFFにしてください）");
   }
 
   await supabase.from("point_rules").delete().eq("id", id);

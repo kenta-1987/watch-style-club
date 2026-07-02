@@ -344,6 +344,35 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["point_rules"]["Insert"]>;
         Relationships: [];
       };
+      // ===== Phase 5.1: Mission Engine（Welcome Mission が最初の mission_group）=====
+      // 達成状態は別テーブルで持たず、point_ledger の (reason, source_type='mission', source_id=userId) から導出する。
+      mission_definitions: {
+        Row: {
+          id: string;
+          code: string;
+          mission_group: string;
+          name: string;
+          description: string | null;
+          sort_order: number;
+          is_active: boolean;
+          // 'always' | 'logged_in' | 'purchased' | 'campaign_only' ...（CHECK制約なし・将来値を自由に追加できる）
+          visibility: string;
+          icon: string | null;
+          created_at: string;
+        };
+        Insert: {
+          code: string;
+          mission_group: string;
+          name: string;
+          description?: string | null;
+          sort_order?: number;
+          is_active?: boolean;
+          visibility?: string;
+          icon?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["mission_definitions"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

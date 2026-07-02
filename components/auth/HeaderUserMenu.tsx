@@ -8,12 +8,15 @@ export function HeaderUserMenu({
   name,
   avatar,
   points,
+  missionProgress,
 }: {
   username: string | null;
   name: string;
   avatar: string | null;
   /** 保有 Style Points（SP）。購入ポイントではなく貢献ポイント */
   points?: number;
+  /** Welcome Mission の簡易進捗。完了済みなら null（呼び出し側で渡さない） */
+  missionProgress?: { completed: number; total: number } | null;
 }) {
   const [open, setOpen] = useState(false);
   const profileHref = username ? `/u/${username}` : "/settings";
@@ -52,6 +55,18 @@ export function HeaderUserMenu({
                 {(points ?? 0).toLocaleString("ja-JP")} SP
               </p>
             </div>
+            {missionProgress && (
+              <Link
+                href={profileHref}
+                onClick={() => setOpen(false)}
+                className="flex items-center justify-between border-b border-black/5 px-3 py-2 text-sm hover:bg-black/[0.04]"
+              >
+                <span>🎉 Welcome Mission</span>
+                <span className="text-xs font-semibold tabular-nums text-black/50">
+                  {missionProgress.completed} / {missionProgress.total}
+                </span>
+              </Link>
+            )}
             <Link
               href={profileHref}
               onClick={() => setOpen(false)}

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { avatarUrl } from "@/lib/avatar";
 import { HeaderUserMenu } from "@/components/auth/HeaderUserMenu";
 import { getMyBalance } from "@/lib/points";
+import { getMyMissionGroup } from "@/lib/missions";
 
 /** ヘッダー右側の認証状態（サーバーで user を判定して出し分け） */
 export async function HeaderAuth() {
@@ -19,7 +20,7 @@ export async function HeaderAuth() {
     );
   }
 
-  const [{ data: profile }, balance] = await Promise.all([
+  const [{ data: profile }, balance, welcomeMission] = await Promise.all([
     supabase
       .from("profiles")
       .select("username, display_name, avatar_path")
@@ -30,6 +31,7 @@ export async function HeaderAuth() {
         avatar_path: string | null;
       }>(),
     getMyBalance(),
+    getMyMissionGroup("welcome"),
   ]);
 
   const avatar = avatarUrl(profile?.avatar_path);
@@ -41,6 +43,11 @@ export async function HeaderAuth() {
       name={name}
       avatar={avatar}
       points={balance}
+      missionProgress={
+        welcomeMission && welcomeMission.completedCount < welcomeMission.totalCount
+          ? { completed: welcomeMission.completedCount, total: welcomeMission.totalCount }
+          : null
+      }
     />
   );
 }

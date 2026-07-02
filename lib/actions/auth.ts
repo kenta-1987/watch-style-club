@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { awardMission } from "@/lib/missions";
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
@@ -45,6 +46,9 @@ export async function loginWithUsername(input: {
     password: input.password,
   });
   if (error) return { error: generic };
+
+  // Welcome Mission「会員登録」：初回ログインのみ付与（2回目以降は ledger の一意制約で no-op）
+  await awardMission(prof.id, "welcome_signup");
 
   // オンボーディング未完了なら誘導
   const { data: p2 } = await supabase
@@ -120,6 +124,12 @@ export async function signUpWithUsername(input: {
     if (upErr) {
       return { error: "登録処理でエラーが発生しました。時間をおいて再度お試しください。" };
     }
+  }
+
+  // セッションが即確立された（メール確認不要設定）場合はここで初回ログイン扱いにする。
+  // メール確認が必要な場合は、確認後の初回ログイン（/auth/callback または loginWithUsername）で付与される。
+  if (data.session && newId) {
+    await awardMission(newId, "welcome_signup");
   }
 
   // セッションが無い＝メール確認が必要
