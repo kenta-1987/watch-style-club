@@ -152,5 +152,5 @@ export async function createPost(input: CreatePostInput): Promise<CreatePostResu
 
   revalidatePath("/gallery");
   revalidatePath("/timeline");
-  redirect("/post/thanks");
+  redirect(`/post/thanks?id=${inserted.id}`);
 }

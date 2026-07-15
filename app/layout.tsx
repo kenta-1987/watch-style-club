@@ -2,11 +2,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { HeaderAuth } from "@/components/auth/HeaderAuth";
+import { getSiteUrl } from "@/lib/share";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   title: "Watch Style Club",
   description: "Apple Watch ユーザーの着画コミュニティ",
+  openGraph: {
+    title: "Watch Style Club",
+    description: "Apple Watch ユーザーの着画コミュニティ",
+    siteName: "Watch Style Club",
+    locale: "ja_JP",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Watch Style Club",
+    description: "Apple Watch ユーザーの着画コミュニティ",
+  },
 };
 
 export default function RootLayout({

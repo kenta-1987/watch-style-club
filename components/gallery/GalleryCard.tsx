@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { PostAuthor } from "@/lib/posts";
 import { CoverMedia } from "@/components/media/CoverMedia";
+import { ShareButton } from "@/components/share/ShareButton";
 
 type GalleryCardPost = {
   id: string;
@@ -13,10 +14,14 @@ type GalleryCardPost = {
   product_url: string | null;
   product_handle: string | null;
   skuHandle: string | null;
+  skuBrandName: string | null;
+  skuSeriesName: string | null;
+  skuColorName: string | null;
   coverType: "image" | "video";
   coverDuration: number | null;
   mediaCount: number;
   author: PostAuthor;
+  recommendedFace: { name: string } | null;
 };
 
 export function GalleryCard({
@@ -39,6 +44,11 @@ export function GalleryCard({
           duration={post.coverDuration}
           count={post.mediaCount}
           alt={`${post.author.displayName ?? post.nickname} の Style`}
+        />
+        <ShareButton
+          post={post}
+          imageUrl={imageUrl}
+          className="absolute right-1.5 top-1.5 rounded-full bg-black/45 p-1.5 text-white hover:bg-black/60 hover:text-white"
         />
       </div>
 

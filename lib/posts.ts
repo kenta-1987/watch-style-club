@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getSignedUrls } from "@/lib/storage";
 
@@ -46,6 +47,12 @@ export type PublicPost = {
   sku_id: string | null;
   /** post.sku の Shopify handle（/sku/[handle] リンク用。未紐付けは null） */
   skuHandle: string | null;
+  /** SKU紐付け投稿のみ：series.brands.name（SNSシェア文面生成用。未紐付けは null） */
+  skuBrandName: string | null;
+  /** SKU紐付け投稿のみ：series.name */
+  skuSeriesName: string | null;
+  /** SKU紐付け投稿のみ：skus.color_name */
+  skuColorName: string | null;
   created_at: string;
   author: PostAuthor;
   /** post.sku → face_recommendations から導出（編集部管理・投稿者は入力しない） */
@@ -63,16 +70,23 @@ export type RankedPost = PublicPost & { score: number };
 // posts↔profiles は user_id 以外に likes/bookmarks 経由の関係もあり曖昧になるため、
 // FK名で明示（profiles!posts_user_id_fkey）。
 const PUBLIC_COLUMNS =
-  "id, user_id, nickname, watch_model, band_brand, band_name, color, comment, product_url, product_handle, image_path, like_count, featured_at, sku_id, created_at, profiles!posts_user_id_fkey(username, display_name, avatar_path), skus(shopify_product_handle)";
+  "id, user_id, nickname, watch_model, band_brand, band_name, color, comment, product_url, product_handle, image_path, like_count, featured_at, sku_id, created_at, profiles!posts_user_id_fkey(username, display_name, avatar_path), skus(shopify_product_handle, color_name, series(name, brands(name)))";
 
-type RawPost = Omit<PublicPost, "author" | "recommendedFace" | "skuHandle"> & {
+type RawPost = Omit<
+  PublicPost,
+  "author" | "recommendedFace" | "skuHandle" | "skuBrandName" | "skuSeriesName" | "skuColorName"
+> & {
   user_id: string;
   profiles: {
     username: string | null;
     display_name: string | null;
     avatar_path: string | null;
   } | null;
-  skus: { shopify_product_handle: string | null } | null;
+  skus: {
+    shopify_product_handle: string | null;
+    color_name: string;
+    series: { name: string; brands: { name: string } | null } | null;
+  } | null;
 };
 
 /** DB行（profiles / skus 埋め込み）を PublicPost にフラット化 */
@@ -81,6 +95,9 @@ function mapPost(r: RawPost): PublicPost {
   return {
     ...rest,
     skuHandle: skus?.shopify_product_handle ?? null,
+    skuBrandName: skus?.series?.brands?.name ?? null,
+    skuSeriesName: skus?.series?.name ?? null,
+    skuColorName: skus?.color_name ?? null,
     author: {
       userId: user_id,
       username: profiles?.username ?? null,
@@ -283,8 +300,11 @@ export async function getStylesByIds(ids: string[]): Promise<{
   return { posts, signedUrls };
 }
 
-/** 単一の承認済み投稿（/p/[id]）。SKU由来Face＋全メディア付き。 */
-export async function getStyleById(id: string): Promise<{
+/**
+ * 単一の承認済み投稿（/p/[id]）。SKU由来Face＋全メディア付き。
+ * cache() で1リクエスト内は重複実行しない（generateMetadata とページ本体の両方から呼ばれるため）。
+ */
+export const getStyleById = cache(async function getStyleById(id: string): Promise<{
   post: PublicPost | null;
   signedUrls: Record<string, string>;
   media: MediaItem[];
@@ -338,6 +358,23 @@ export async function getStyleById(id: string): Promise<{
 
   const signedUrls = await getSignedUrls([post.image_path]);
   return { post, signedUrls, media };
+});
+
+/**
+ * 投稿完了直後（/post/thanks）用：ステータスだけを軽量に確認する。
+ * RLS（本人 or admin or 承認済み）の範囲でしか行が見えないため、他人の pending 投稿の存在は漏れない。
+ * approved であれば呼び出し側が getStyleById() でシェア用データを取得する。
+ */
+export async function getPostShareState(
+  id: string
+): Promise<{ status: "pending" | "approved" | "rejected" } | null> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("posts")
+    .select("status")
+    .eq("id", id)
+    .maybeSingle<{ status: "pending" | "approved" | "rejected" }>();
+  return data ?? null;
 }
 
 /** 人気ランキング：get_ranking(期間) で並べた投稿＋スコア＋署名URL */

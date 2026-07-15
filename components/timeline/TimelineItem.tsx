@@ -8,6 +8,7 @@ import { RecommendedFace } from "@/components/style/RecommendedFace";
 import { CoverMedia } from "@/components/media/CoverMedia";
 import { MediaCarousel } from "@/components/media/MediaCarousel";
 import { shopUrlForHandle } from "@/lib/shopify";
+import { ShareButton } from "@/components/share/ShareButton";
 
 export function TimelineItem({
   post,
@@ -63,7 +64,7 @@ export function TimelineItem({
         cover
       )}
 
-      {/* アクションバー：いいね / 保存 */}
+      {/* アクションバー：いいね / 保存 / シェア */}
       <div className="flex items-center justify-between px-4 pt-3">
         <LikeButton
           postId={post.id}
@@ -71,7 +72,10 @@ export function TimelineItem({
           initialLiked={liked}
           isAuthed={isAuthed}
         />
-        <BookmarkButton postId={post.id} initialSaved={saved} isAuthed={isAuthed} />
+        <div className="flex items-center gap-3">
+          <BookmarkButton postId={post.id} initialSaved={saved} isAuthed={isAuthed} />
+          <ShareButton post={post} imageUrl={imageUrl} />
+        </div>
       </div>
 
       {/* 本文：Style 仕様 → コメント → 再現 */}
