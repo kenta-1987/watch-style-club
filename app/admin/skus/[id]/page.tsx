@@ -13,19 +13,21 @@ export default async function SkuFacesPage({
 }: {
   params: { id: string };
 }) {
-  const { sku, faces, label } = await getSkuWithFaces(params.id);
+  const { sku, product, faces, label } = await getSkuWithFaces(params.id);
   if (!sku) notFound();
+
+  const handle = product?.shopify_product_handle ?? null;
 
   return (
     <div className="mx-auto max-w-xl">
-      <Link href="/admin/skus" className="text-sm text-black/50 hover:text-ink">
-        ← SKU一覧
+      <Link href="/admin/products" className="text-sm text-black/50 hover:text-ink">
+        ← 商品カタログ
       </Link>
       <div className="mt-2 flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">{label}</h1>
-        {sku.shopify_product_handle && (
+        {handle && (
           <Link
-            href={`/sku/${sku.shopify_product_handle}`}
+            href={`/sku/${handle}`}
             target="_blank"
             className="shrink-0 text-sm text-black/50 hover:text-ink"
           >
@@ -34,9 +36,7 @@ export default async function SkuFacesPage({
         )}
       </div>
       <p className="mt-1 text-xs text-black/45">
-        {sku.shopify_product_handle
-          ? `Shopify: ${sku.shopify_product_handle}`
-          : "Shopify handle 未設定"}
+        {handle ? `Shopify: ${handle}` : "Shopify handle 未設定（商品側で設定）"}
       </p>
 
       {/* おすすめ文字盤一覧 */}

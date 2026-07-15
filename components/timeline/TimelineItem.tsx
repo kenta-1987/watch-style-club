@@ -28,7 +28,8 @@ export function TimelineItem({
 }) {
   const featured = !!post.featured_at;
   const alt = `${post.author.displayName ?? post.nickname} の Apple Watch Style`;
-  const shopUrl = shopUrlForHandle(post.skuHandle) ?? post.product_url;
+  // 購入リンク: products.product_url（同期された正確なURL）→ handle生成 → 自由入力 の優先順
+  const shopUrl = post.skuProductUrl ?? shopUrlForHandle(post.skuHandle) ?? post.product_url;
 
   // フィード：カバー1枚。複数 or 動画なら /p/[id] へ誘導。
   const cover = (

@@ -45,14 +45,16 @@ export type PublicPost = {
   like_count: number;
   featured_at: string | null;
   sku_id: string | null;
-  /** post.sku の Shopify handle（/sku/[handle] リンク用。未紐付けは null） */
+  /** post.sku → product の Shopify handle（/sku/[handle] リンク用。未紐付けは null） */
   skuHandle: string | null;
-  /** SKU紐付け投稿のみ：series.brands.name（SNSシェア文面生成用。未紐付けは null） */
+  /** SKU紐付け投稿のみ：product.brands.name（表示・シェア文面用。未紐付けは null） */
   skuBrandName: string | null;
-  /** SKU紐付け投稿のみ：series.name */
-  skuSeriesName: string | null;
+  /** SKU紐付け投稿のみ：products.name（商品名） */
+  skuProductName: string | null;
   /** SKU紐付け投稿のみ：skus.color_name */
   skuColorName: string | null;
+  /** SKU紐付け投稿のみ：products.product_url（購入リンク。handleより優先） */
+  skuProductUrl: string | null;
   created_at: string;
   author: PostAuthor;
   /** post.sku → face_recommendations から導出（編集部管理・投稿者は入力しない） */
@@ -69,12 +71,20 @@ export type RankedPost = PublicPost & { score: number };
 
 // posts↔profiles は user_id 以外に likes/bookmarks 経由の関係もあり曖昧になるため、
 // FK名で明示（profiles!posts_user_id_fkey）。
+// Style Commerce の核: 商品情報（ブランド/商品名/カラー/購入URL）は投稿へコピーせず、
+// 常に skus → products → brands をJOINして導出する（カタログが正）。
 const PUBLIC_COLUMNS =
-  "id, user_id, nickname, watch_model, band_brand, band_name, color, comment, product_url, product_handle, image_path, like_count, featured_at, sku_id, created_at, profiles!posts_user_id_fkey(username, display_name, avatar_path), skus(shopify_product_handle, color_name, series(name, brands(name)))";
+  "id, user_id, nickname, watch_model, band_brand, band_name, color, comment, product_url, product_handle, image_path, like_count, featured_at, sku_id, created_at, profiles!posts_user_id_fkey(username, display_name, avatar_path), skus(color_name, products(name, product_url, shopify_product_handle, brands(name)))";
 
 type RawPost = Omit<
   PublicPost,
-  "author" | "recommendedFace" | "skuHandle" | "skuBrandName" | "skuSeriesName" | "skuColorName"
+  | "author"
+  | "recommendedFace"
+  | "skuHandle"
+  | "skuBrandName"
+  | "skuProductName"
+  | "skuColorName"
+  | "skuProductUrl"
 > & {
   user_id: string;
   profiles: {
@@ -83,21 +93,26 @@ type RawPost = Omit<
     avatar_path: string | null;
   } | null;
   skus: {
-    shopify_product_handle: string | null;
     color_name: string;
-    series: { name: string; brands: { name: string } | null } | null;
+    products: {
+      name: string;
+      product_url: string | null;
+      shopify_product_handle: string | null;
+      brands: { name: string } | null;
+    } | null;
   } | null;
 };
 
-/** DB行（profiles / skus 埋め込み）を PublicPost にフラット化 */
+/** DB行（profiles / skus→products 埋め込み）を PublicPost にフラット化 */
 function mapPost(r: RawPost): PublicPost {
   const { user_id, profiles, skus, ...rest } = r;
   return {
     ...rest,
-    skuHandle: skus?.shopify_product_handle ?? null,
-    skuBrandName: skus?.series?.brands?.name ?? null,
-    skuSeriesName: skus?.series?.name ?? null,
+    skuHandle: skus?.products?.shopify_product_handle ?? null,
+    skuBrandName: skus?.products?.brands?.name ?? null,
+    skuProductName: skus?.products?.name ?? null,
     skuColorName: skus?.color_name ?? null,
+    skuProductUrl: skus?.products?.product_url ?? null,
     author: {
       userId: user_id,
       username: profiles?.username ?? null,

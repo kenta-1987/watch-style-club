@@ -17,7 +17,7 @@ export type ShareablePost = {
   band_name: string | null;
   color: string | null;
   skuBrandName: string | null;
-  skuSeriesName: string | null;
+  skuProductName: string | null;
   skuColorName: string | null;
   author: { username: string | null; displayName: string | null };
   nickname: string;
@@ -38,13 +38,14 @@ export function buildShareUrl(post: Pick<ShareablePost, "id">): string {
 
 /**
  * バンドの表示ラベル（例: "Campagne Sélection FKM / Starlight"）。
- * SKU紐付け投稿は skus→series→brands 由来、未登録バンドは自由入力欄由来。どちらも無ければ null。
+ * SKU紐付け投稿は skus→products→brands 由来、未登録バンドは自由入力欄由来。どちらも無ければ null。
+ * StyleSpec / GalleryCard のBAND表示もこの関数を使う（表示ロジックの一元化）。
  */
 export function buildBandLabel(post: ShareablePost): string | null {
   const brand = post.skuBrandName ?? post.band_brand;
-  const seriesOrName = post.skuSeriesName ?? post.band_name;
+  const productOrName = post.skuProductName ?? post.band_name;
   const color = post.skuColorName ?? post.color;
-  const head = [brand, seriesOrName].filter(Boolean).join(" ");
+  const head = [brand, productOrName].filter(Boolean).join(" ");
   const label = [head, color].filter(Boolean).join(" / ");
   return label || null;
 }

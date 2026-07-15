@@ -18,7 +18,7 @@ export default async function GalleryPage({
   const [{ posts: list, signedUrls }, { data: models }, { data: brands }, { data: colorRows }] =
     await Promise.all([
       getApprovedPosts({ model, brand, color }),
-      supabase.from("watch_models").select("label").order("sort_order"),
+      supabase.from("apple_watch_models").select("display_name").eq("is_active", true).order("sort_order"),
       supabase.from("band_brands").select("label").order("sort_order"),
       supabase
         .from("posts")
@@ -53,7 +53,7 @@ export default async function GalleryPage({
 
       <div className="mt-5">
         <FilterBar
-          models={(models ?? []).map((m) => m.label)}
+          models={(models ?? []).map((m) => m.display_name)}
           brands={(brands ?? []).map((b) => b.label)}
           colors={colors}
         />

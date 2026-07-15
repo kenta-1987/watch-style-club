@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { PostAuthor } from "@/lib/posts";
 import { CoverMedia } from "@/components/media/CoverMedia";
 import { ShareButton } from "@/components/share/ShareButton";
+import { shopUrlForHandle } from "@/lib/shopify";
 
 type GalleryCardPost = {
   id: string;
@@ -15,8 +16,9 @@ type GalleryCardPost = {
   product_handle: string | null;
   skuHandle: string | null;
   skuBrandName: string | null;
-  skuSeriesName: string | null;
+  skuProductName: string | null;
   skuColorName: string | null;
+  skuProductUrl: string | null;
   coverType: "image" | "video";
   coverDuration: number | null;
   mediaCount: number;
@@ -31,9 +33,15 @@ export function GalleryCard({
   post: GalleryCardPost;
   imageUrl: string;
 }) {
-  const bandLine = [post.band_brand, post.band_name, post.color]
+  // BAND は Product Catalog（SKU→Product→Brand）から導出。無ければ自由入力（未登録バンド）
+  const bandLine = [
+    post.skuBrandName ?? post.band_brand,
+    post.skuProductName ?? post.band_name,
+    post.skuColorName ?? post.color,
+  ]
     .filter(Boolean)
     .join(" / ");
+  const shopUrl = post.skuProductUrl ?? shopUrlForHandle(post.skuHandle) ?? post.product_url;
 
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white">
@@ -80,9 +88,9 @@ export function GalleryCard({
           </p>
         )}
 
-        {post.product_url && (
+        {shopUrl && (
           <a
-            href={post.product_url}
+            href={shopUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-auto inline-flex items-center justify-center rounded-full bg-ink px-3 py-2 text-xs font-medium text-white hover:opacity-80"

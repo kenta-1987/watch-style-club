@@ -8,17 +8,18 @@ function shortModel(model: string): string {
 /**
  * Style の構成要素を「仕様シート」風に提示する：Apple Watch / Band / Face。
  * Style = 本体 × バンド × 文字盤、という思想をカード上で明示する中核UI。
- * 値はギャラリーの絞り込みに飛ぶ（将来はブランド/文字盤ページへ差し替え可能）。
+ *
+ * BAND は Product Catalog から導出する（Style Commerce の核）：
+ *   - SKU紐付け投稿 → skus → products → brands（skuBrandName / skuProductName / skuColorName）
+ *   - 未登録バンド   → band_brand / band_name / color（自由入力）
+ * 投稿に商品情報をコピーしないため、カタログ側の変更が常に全投稿へ反映される。
  */
-export function StyleSpec({
-  post,
-  faceLabel,
-}: {
-  post: PublicPost;
-  /** 文字盤名/レシピ。未保存なら undefined（→「準備中」表示） */
-  faceLabel?: string | null;
-}) {
-  const bandParts = [post.band_brand, post.band_name, post.color].filter(Boolean);
+export function StyleSpec({ post }: { post: PublicPost }) {
+  // SKU由来（Product導出）を優先、無ければ自由入力
+  const brand = post.skuBrandName ?? post.band_brand;
+  const productName = post.skuProductName ?? post.band_name;
+  const colorName = post.skuColorName ?? post.color;
+  const bandParts = [brand, productName, colorName].filter(Boolean);
 
   const rowClass = "flex items-baseline gap-3 py-2";
   const labelClass =
@@ -51,16 +52,16 @@ export function StyleSpec({
             </Link>
           ) : (
             <span>
-              {post.band_brand ? (
+              {brand ? (
                 <Link
-                  href={`/gallery?brand=${encodeURIComponent(post.band_brand)}`}
+                  href={`/gallery?brand=${encodeURIComponent(brand)}`}
                   className="hover:underline"
                 >
-                  {post.band_brand}
+                  {brand}
                 </Link>
               ) : null}
-              {post.band_name ? ` ${post.band_name}` : ""}
-              {post.color ? ` / ${post.color}` : ""}
+              {productName ? ` ${productName}` : ""}
+              {colorName ? ` / ${colorName}` : ""}
             </span>
           )}
         </dd>

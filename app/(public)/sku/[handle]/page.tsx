@@ -1,12 +1,10 @@
 import { notFound } from "next/navigation";
-import { getSkuPageByHandle } from "@/lib/catalog";
-import { getApprovedPosts } from "@/lib/posts";
+import { getProductPageByHandle } from "@/lib/catalog";
+import { getApprovedPosts, type PublicPost } from "@/lib/posts";
 import { StyleGrid } from "@/components/profile/StyleGrid";
+import { shopUrlForHandle } from "@/lib/shopify";
 
 export const dynamic = "force-dynamic";
-
-const SHOPIFY_BASE =
-  process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN || "https://shop.applewatchjournal.net";
 
 function Stars({ rating }: { rating: number | null }) {
   if (!rating) return null;
@@ -19,35 +17,57 @@ function Stars({ rating }: { rating: number | null }) {
   );
 }
 
-export default async function SkuPage({
+/**
+ * 商品ページ（URL は /sku/[handle] のまま互換維持・中身は Product ベース）。
+ * 1 handle = 1 Product。配下の全カラー(SKU)・おすすめ文字盤・この商品のStyleを表示する。
+ */
+export default async function ProductPage({
   params,
 }: {
   params: { handle: string };
 }) {
-  const page = await getSkuPageByHandle(params.handle);
+  const page = await getProductPageByHandle(params.handle);
   if (!page) notFound();
 
-  const { sku, brandName, seriesName, label, faces } = page;
-  const { posts: styles, signedUrls } = await getApprovedPosts({
-    skuId: sku.id,
-    limit: 60,
-  });
+  const { product, brandName, label, skus, faces } = page;
 
-  const shopUrl = sku.shopify_product_handle
-    ? `${SHOPIFY_BASE}/products/${sku.shopify_product_handle}`
-    : null;
+  // この商品の全SKUのStyleをまとめて表示
+  const skuStyles = await Promise.all(
+    skus.map((sku) => getApprovedPosts({ skuId: sku.id, limit: 60 }))
+  );
+  const styles: PublicPost[] = skuStyles.flatMap((s) => s.posts);
+  const signedUrls = Object.assign({}, ...skuStyles.map((s) => s.signedUrls)) as Record<
+    string,
+    string
+  >;
+
+  const shopUrl =
+    product.product_url ?? shopUrlForHandle(product.shopify_product_handle);
   const productImage =
-    sku.image_path && sku.image_path.startsWith("http") ? sku.image_path : null;
+    product.image_path && product.image_path.startsWith("http")
+      ? product.image_path
+      : null;
+  const soldOut = product.sales_status === "sold_out";
+  const discontinued = product.sales_status === "discontinued";
 
   return (
     <div className="mx-auto max-w-xl">
-      {/* SKU ヘッダー */}
+      {/* 商品ヘッダー（Productが正本） */}
       <header>
         <p className="text-xs tracking-widest text-black/40">
-          {[brandName, seriesName].filter(Boolean).join(" · ").toUpperCase()}
+          {(brandName ?? "").toUpperCase()}
         </p>
         <h1 className="mt-1 text-2xl font-semibold">{label}</h1>
-        <p className="mt-1 text-sm text-black/55">カラー：{sku.color_name}</p>
+        {skus.length > 0 && (
+          <p className="mt-1 text-sm text-black/55">
+            カラー：{skus.map((s) => s.color_name).join(" / ")}
+          </p>
+        )}
+        {(product.wsc_description || product.description) && (
+          <p className="mt-3 text-sm leading-relaxed text-black/70">
+            {product.wsc_description || product.description}
+          </p>
+        )}
       </header>
 
       {productImage && (
@@ -57,7 +77,15 @@ export default async function SkuPage({
         </div>
       )}
 
-      {shopUrl && (
+      {discontinued ? (
+        <div className="mt-4 flex items-center justify-center rounded-full border border-black/10 py-3 text-sm font-medium text-black/40">
+          販売終了
+        </div>
+      ) : soldOut ? (
+        <div className="mt-4 flex items-center justify-center rounded-full border border-black/10 py-3 text-sm font-medium text-black/40">
+          在庫なし
+        </div>
+      ) : shopUrl ? (
         <a
           href={shopUrl}
           target="_blank"
@@ -67,7 +95,7 @@ export default async function SkuPage({
           <span className="text-base leading-none">🛒</span>
           このバンドを見る（Shopify）
         </a>
-      )}
+      ) : null}
 
       {/* おすすめ文字盤 */}
       <section className="mt-8">
@@ -115,14 +143,14 @@ export default async function SkuPage({
         )}
       </section>
 
-      {/* このSKUを使ったStyle */}
+      {/* この商品のStyle */}
       <section className="mt-8">
-        <h2 className="text-sm font-semibold">このSKUを使ったStyle</h2>
+        <h2 className="text-sm font-semibold">この商品のStyle</h2>
         <div className="mt-3">
           <StyleGrid
             posts={styles}
             signedUrls={signedUrls}
-            emptyText="まだこのSKUのStyleはありません。"
+            emptyText="まだこの商品のStyleはありません。"
             showAuthor
           />
         </div>

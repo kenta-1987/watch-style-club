@@ -164,15 +164,71 @@ export async function updateMyProfile(formData: FormData): Promise<void> {
   await revalidateProfile(supabase, user.id);
 }
 
+/**
+ * My Watch 追加（構造化）。apple_watch_model_id 必須・色/サイズ/ニックネームは任意。
+ * 最初の1件は自動的にメインWatch（is_primary）になる。
+ */
 export async function addOwnedWatch(formData: FormData): Promise<void> {
   const { supabase, user } = await requireUser();
-  const model = String(formData.get("model") ?? "").trim();
-  const color = String(formData.get("color") ?? "").trim();
+  const modelId = String(formData.get("apple_watch_model_id") ?? "").trim();
+  if (!modelId) return;
+
+  const { data: model } = await supabase
+    .from("apple_watch_models")
+    .select("id, display_name")
+    .eq("id", modelId)
+    .maybeSingle<{ id: string; display_name: string }>();
   if (!model) return;
+
+  const caseSizeRaw = String(formData.get("case_size") ?? "").trim();
+  const { count: primaryCount } = await supabase
+    .from("owned_watches")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("is_primary", true);
+
+  await supabase.from("owned_watches").insert({
+    user_id: user.id,
+    model: model.display_name, // 互換文字列
+    apple_watch_model_id: model.id,
+    case_material: String(formData.get("case_material") ?? "").trim() || null,
+    case_color: String(formData.get("case_color") ?? "").trim() || null,
+    case_size: caseSizeRaw ? Number(caseSizeRaw) : null,
+    nickname: String(formData.get("nickname") ?? "").trim() || null,
+    is_primary: (primaryCount ?? 0) === 0,
+  });
+  await revalidateProfile(supabase, user.id);
+  revalidatePath("/post/new");
+}
+
+/** メインWatchの切替（本人のWatchのみ。既存のprimaryを外してから立てる） */
+export async function setPrimaryWatch(formData: FormData): Promise<void> {
+  const { supabase, user } = await requireUser();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const { data: target } = await supabase
+    .from("owned_watches")
+    .select("id")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle<{ id: string }>();
+  if (!target) return;
+
+  // 一意partial index (user_id) where is_primary があるため、先に既存primaryを外す
   await supabase
     .from("owned_watches")
-    .insert({ user_id: user.id, model, color: color || null });
+    .update({ is_primary: false })
+    .eq("user_id", user.id)
+    .eq("is_primary", true);
+  await supabase
+    .from("owned_watches")
+    .update({ is_primary: true })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
   await revalidateProfile(supabase, user.id);
+  revalidatePath("/post/new");
 }
 
 export async function addOwnedBand(formData: FormData): Promise<void> {

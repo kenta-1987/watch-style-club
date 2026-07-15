@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMyProfile, getCollections } from "@/lib/profile-data";
+import { getAppleWatchModels } from "@/lib/watches";
 import { getMyBalance, getMyLedger, reasonLabel } from "@/lib/points";
 import { getMyMissionGroup } from "@/lib/missions";
 import { ProfileEditForm } from "@/components/profile/ProfileEditForm";
@@ -27,8 +28,9 @@ export default async function SettingsPage() {
 
   const profile = await getMyProfile();
   if (!profile) redirect("/onboarding");
-  const [collections, balance, ledger, welcomeMission] = await Promise.all([
+  const [collections, watchModels, balance, ledger, welcomeMission] = await Promise.all([
     getCollections(user.id),
+    getAppleWatchModels(),
     getMyBalance(),
     getMyLedger(20),
     getMyMissionGroup("welcome"),
@@ -77,7 +79,7 @@ export default async function SettingsPage() {
           所有している Apple Watch / バンド / 文字盤を登録できます。
         </p>
         <div className="mt-4">
-          <CollectionManager collections={collections} />
+          <CollectionManager collections={collections} watchModels={watchModels} />
         </div>
       </section>
 

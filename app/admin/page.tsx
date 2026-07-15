@@ -90,8 +90,8 @@ export default async function AdminPage({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">投稿レビュー</h1>
         <div className="flex items-center gap-4">
-          <Link href="/admin/skus" className="text-sm text-black/50 hover:text-ink">
-            SKU/Face →
+          <Link href="/admin/products" className="text-sm text-black/50 hover:text-ink">
+            商品カタログ →
           </Link>
           <Link href="/admin/digest" className="text-sm text-black/50 hover:text-ink">
             ダイジェスト →

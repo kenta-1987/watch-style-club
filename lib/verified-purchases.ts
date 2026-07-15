@@ -16,9 +16,9 @@ import { createClient } from "@/lib/supabase/server";
 export type VerifiedSkuOption = {
   skuId: string;
   brandId: string;
-  seriesId: string;
+  productId: string;
   brandName: string;
-  seriesName: string;
+  productName: string;
   colorName: string;
   purchasedAt: string;
 };
@@ -27,9 +27,9 @@ type Row = {
   sku_id: string;
   purchased_at: string;
   skus: {
-    series_id: string;
+    product_id: string;
     color_name: string;
-    series: {
+    products: {
       brand_id: string;
       name: string;
       brands: { name: string } | null;
@@ -51,7 +51,7 @@ export async function getMyVerifiedSkus(): Promise<VerifiedSkuOption[]> {
   const { data } = await supabase
     .from("verified_purchases")
     .select(
-      "sku_id, purchased_at, skus(series_id, color_name, series(brand_id, name, brands(name)))"
+      "sku_id, purchased_at, skus(product_id, color_name, products(brand_id, name, brands(name)))"
     )
     .eq("profile_id", user.id)
     .order("purchased_at", { ascending: false })
@@ -60,14 +60,14 @@ export async function getMyVerifiedSkus(): Promise<VerifiedSkuOption[]> {
   const bySkuId = new Map<string, VerifiedSkuOption>();
   for (const row of data ?? []) {
     if (bySkuId.has(row.sku_id)) continue;
-    const series = row.skus?.series;
-    if (!series) continue;
+    const product = row.skus?.products;
+    if (!product) continue;
     bySkuId.set(row.sku_id, {
       skuId: row.sku_id,
-      brandId: series.brand_id,
-      seriesId: row.skus!.series_id,
-      brandName: series.brands?.name ?? "",
-      seriesName: series.name,
+      brandId: product.brand_id,
+      productId: row.skus!.product_id,
+      brandName: product.brands?.name ?? "",
+      productName: product.name,
       colorName: row.skus!.color_name,
       purchasedAt: row.purchased_at,
     });

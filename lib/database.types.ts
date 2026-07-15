@@ -39,16 +39,33 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
         Relationships: [];
       };
+      // My Watch（0021で構造化。model/colorは旧文字列互換）
       owned_watches: {
         Row: {
           id: string;
           user_id: string;
           model: string;
           color: string | null;
+          apple_watch_model_id: string | null;
+          case_material: string | null;
+          case_color: string | null;
+          case_size: number | null;
+          nickname: string | null;
+          is_primary: boolean;
           created_at: string;
         };
-        Insert: { user_id: string; model: string; color?: string | null };
-        Update: Partial<{ model: string; color: string | null }>;
+        Insert: {
+          user_id: string;
+          model: string;
+          color?: string | null;
+          apple_watch_model_id?: string | null;
+          case_material?: string | null;
+          case_color?: string | null;
+          case_size?: number | null;
+          nickname?: string | null;
+          is_primary?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["owned_watches"]["Insert"]>;
         Relationships: [];
       };
       owned_bands: {
@@ -99,16 +116,125 @@ export interface Database {
         Update: Partial<{ slug: string; name: string; logo_path: string | null }>;
         Relationships: [];
       };
+      // series は 0022 で削除予定（products へ昇格済み・旧コード互換のため型のみ残す）
       series: {
         Row: { id: string; brand_id: string; slug: string | null; name: string; created_at: string };
         Insert: { brand_id: string; name: string; slug?: string | null };
         Update: Partial<{ brand_id: string; slug: string | null; name: string }>;
         Relationships: [];
       };
+      // ===== Product Catalog 再設計（0020）: Brand → Category → Product → SKU → Post =====
+      categories: {
+        Row: { id: string; slug: string; name: string; sort_order: number; created_at: string };
+        Insert: { slug: string; name: string; sort_order?: number };
+        Update: Partial<{ slug: string; name: string; sort_order: number }>;
+        Relationships: [];
+      };
+      // 事実列（Shopify同期が上書き）: name/description/image_path/product_url/
+      //   shopify_product_id/shopify_product_handle/sales_status/synced_at
+      // WSC編集列（同期は触らない）: category_id/is_published/is_recommended/is_featured/
+      //   sort_order/wsc_description
+      products: {
+        Row: {
+          id: string;
+          brand_id: string;
+          category_id: string | null;
+          slug: string;
+          name: string;
+          description: string | null;
+          image_path: string | null;
+          product_url: string | null;
+          shopify_product_id: string | null;
+          shopify_product_handle: string | null;
+          sales_status: "active" | "sold_out" | "discontinued";
+          synced_at: string | null;
+          source: string;
+          is_published: boolean;
+          is_recommended: boolean;
+          is_featured: boolean;
+          sort_order: number;
+          wsc_description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          brand_id: string;
+          category_id?: string | null;
+          slug: string;
+          name: string;
+          description?: string | null;
+          image_path?: string | null;
+          product_url?: string | null;
+          shopify_product_id?: string | null;
+          shopify_product_handle?: string | null;
+          sales_status?: "active" | "sold_out" | "discontinued";
+          synced_at?: string | null;
+          source?: string;
+          is_published?: boolean;
+          is_recommended?: boolean;
+          is_featured?: boolean;
+          sort_order?: number;
+          wsc_description?: string | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["products"]["Insert"]>;
+        Relationships: [];
+      };
+      product_media: {
+        Row: {
+          id: string;
+          product_id: string;
+          media_role: "hero" | "gallery" | "description";
+          url: string;
+          alt: string | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          product_id: string;
+          media_role?: "hero" | "gallery" | "description";
+          url: string;
+          alt?: string | null;
+          sort_order?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["product_media"]["Insert"]>;
+        Relationships: [];
+      };
+      apple_watch_models: {
+        Row: {
+          id: string;
+          family: string;
+          generation: number;
+          display_name: string;
+          case_materials: string[];
+          case_colors: string[];
+          case_sizes: number[];
+          released_year: number | null;
+          sort_order: number;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          family: string;
+          generation: number;
+          display_name: string;
+          case_materials?: string[];
+          case_colors?: string[];
+          case_sizes?: number[];
+          released_year?: number | null;
+          sort_order?: number;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["apple_watch_models"]["Insert"]>;
+        Relationships: [];
+      };
       skus: {
         Row: {
           id: string;
           series_id: string;
+          product_id: string;
+          position: number;
           color_name: string;
           color_hex: string | null;
           shopify_product_handle: string | null;
@@ -119,7 +245,9 @@ export interface Database {
           created_at: string;
         };
         Insert: {
-          series_id: string;
+          series_id?: string;
+          product_id: string;
+          position?: number;
           color_name: string;
           color_hex?: string | null;
           shopify_product_handle?: string | null;
@@ -176,6 +304,7 @@ export interface Database {
           like_count: number;
           featured_at: string | null;
           sku_id: string | null;
+          user_watch_id: string | null;
           created_at: string;
           approved_at: string | null;
         };
@@ -192,6 +321,7 @@ export interface Database {
           product_handle?: string | null;
           status?: PostStatus;
           sku_id?: string | null;
+          user_watch_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["posts"]["Insert"]> & {
           status?: PostStatus;

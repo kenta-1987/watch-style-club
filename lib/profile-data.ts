@@ -17,7 +17,15 @@ export type ProfileStats = {
   featuredCount: number;
 };
 
-export type OwnedWatch = { id: string; model: string; color: string | null };
+export type OwnedWatch = {
+  id: string;
+  model: string;
+  color: string | null;
+  case_color: string | null;
+  case_size: number | null;
+  nickname: string | null;
+  is_primary: boolean;
+};
 export type OwnedBand = { id: string; brand: string | null; name: string; color: string | null };
 export type OwnedFace = { id: string; name: string; share_url: string | null };
 
@@ -79,8 +87,9 @@ export async function getCollections(userId: string): Promise<Collections> {
   const [w, b, f] = await Promise.all([
     supabase
       .from("owned_watches")
-      .select("id, model, color")
+      .select("id, model, color, case_color, case_size, nickname, is_primary")
       .eq("user_id", userId)
+      .order("is_primary", { ascending: false })
       .order("created_at", { ascending: true })
       .returns<OwnedWatch[]>(),
     supabase

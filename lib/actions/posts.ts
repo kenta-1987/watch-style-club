@@ -15,7 +15,22 @@ export type MediaInput = {
 };
 
 export type CreatePostInput = {
-  watch_model: string;
+  /**
+   * My Watch のID（owned_watches・本人所有のみ）。
+   * 指定時は watch_model（互換文字列）をサーバー側で導出する。
+   */
+  user_watch_id?: string | null;
+  /**
+   * My Watch 未登録ユーザーのインライン登録（1回だけ）。
+   * apple_watch_model_id からメインWatchを作成し、その user_watch で投稿する。
+   */
+  new_watch?: {
+    apple_watch_model_id: string;
+    case_color?: string | null;
+    case_size?: number | null;
+  } | null;
+  /** 旧互換：My Watch が使えない場合の文字列フォールバック（通常は使わない） */
+  watch_model?: string;
   /** AWJ取扱バンド：SKU。指定時は未登録バンドの自由入力は使わない */
   sku_id?: string | null;
   /** 未登録バンド：自由入力 */
@@ -61,7 +76,60 @@ export async function createPost(input: CreatePostInput): Promise<CreatePostResu
   if (!media.every((m) => m.storage_path.startsWith(`${user.id}/`))) {
     return { error: "メディアが正しくアップロードされていません。" };
   }
-  if (!input.watch_model?.trim()) {
+
+  // ---- Watch の解決（My Watch → watch_model 互換文字列を導出）----
+  let userWatchId: string | null = input.user_watch_id ?? null;
+  let watchModelText = input.watch_model?.trim() ?? "";
+
+  if (input.new_watch?.apple_watch_model_id) {
+    // インライン登録：モデル存在確認 → メインWatchとして作成（既にメインがある場合は通常Watch）
+    const { data: model } = await supabase
+      .from("apple_watch_models")
+      .select("id, display_name")
+      .eq("id", input.new_watch.apple_watch_model_id)
+      .maybeSingle<{ id: string; display_name: string }>();
+    if (!model) return { error: "Apple Watch のモデルを選択してください。" };
+
+    const { count: primaryCount } = await supabase
+      .from("owned_watches")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_primary", true);
+
+    const { data: newWatch, error: watchErr } = await supabase
+      .from("owned_watches")
+      .insert({
+        user_id: user.id,
+        model: model.display_name,
+        apple_watch_model_id: model.id,
+        case_color: input.new_watch.case_color?.trim() || null,
+        case_size: input.new_watch.case_size ?? null,
+        is_primary: (primaryCount ?? 0) === 0,
+      })
+      .select("id")
+      .single<{ id: string }>();
+    if (watchErr || !newWatch) {
+      return { error: "Apple Watch の登録に失敗しました。" };
+    }
+    userWatchId = newWatch.id;
+    watchModelText = model.display_name;
+  } else if (userWatchId) {
+    // My Watch選択：本人所有か検証し、watch_model 互換文字列を導出
+    const { data: watch } = await supabase
+      .from("owned_watches")
+      .select("id, model, apple_watch_models(display_name)")
+      .eq("id", userWatchId)
+      .eq("user_id", user.id)
+      .maybeSingle<{
+        id: string;
+        model: string;
+        apple_watch_models: { display_name: string } | null;
+      }>();
+    if (!watch) return { error: "選択されたApple Watchが見つかりません。" };
+    watchModelText = watch.apple_watch_models?.display_name ?? watch.model;
+  }
+
+  if (!watchModelText) {
     return { error: "Apple Watch のモデルを選択してください。" };
   }
 
@@ -88,8 +156,10 @@ export async function createPost(input: CreatePostInput): Promise<CreatePostResu
       user_id: user.id,
       image_path: cover.storage_path, // カバーをコピー（旧表示互換）
       nickname,
-      watch_model: input.watch_model.trim(),
+      watch_model: watchModelText,
+      user_watch_id: userWatchId,
       sku_id: input.sku_id || null,
+      // AWJ投稿は商品情報を一切コピーしない（sku→product→brandから常に導出）
       band_brand: isAwj ? null : input.band_brand?.trim() || null,
       band_name: isAwj ? null : input.band_name?.trim() || null,
       color: isAwj ? null : input.color?.trim() || null,
@@ -143,7 +213,7 @@ export async function createPost(input: CreatePostInput): Promise<CreatePostResu
 
   await notifyNewPost({
     nickname,
-    watchModel: input.watch_model.trim(),
+    watchModel: watchModelText,
     bandBrand: input.band_brand?.trim() || null,
     bandName: input.band_name?.trim() || null,
     color: input.color?.trim() || null,

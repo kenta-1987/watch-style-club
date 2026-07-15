@@ -5,8 +5,10 @@ import { createClient } from "@/lib/supabase/client";
 import { compressToWebp, readMediaMeta } from "@/lib/image";
 import { createPost } from "@/lib/actions/posts";
 import { formatDuration } from "@/lib/format";
-import type { PickerBrand } from "@/lib/catalog";
+import type { PickerBrand, PickerProduct } from "@/lib/catalog";
 import type { VerifiedSkuOption } from "@/lib/verified-purchases";
+import type { AppleWatchModel, MyWatch } from "@/lib/watches-shared";
+import { watchLabel } from "@/lib/watches-shared";
 
 const MAX_MEDIA = 5;
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50MB
@@ -25,25 +27,37 @@ type MediaDraft = {
 
 export function PostForm({
   nickname,
-  defaultWatchModel,
-  models,
+  myWatches,
+  watchModels,
   pickerTree,
   verifiedSkus = [],
 }: {
   nickname: string;
-  defaultWatchModel: string;
-  models: string[];
+  /** My Watch（メイン→登録順）。空ならインライン登録UIを出す */
+  myWatches: MyWatch[];
+  /** Apple Watch モデルマスタ（My Watch未登録時のインライン登録用） */
+  watchModels: AppleWatchModel[];
   pickerTree: PickerBrand[];
   verifiedSkus?: VerifiedSkuOption[];
 }) {
-  const [watchModel, setWatchModel] = useState(defaultWatchModel);
+  // ---- Watch: My Watchから選択（初期値=メイン）----
+  const [userWatchId, setUserWatchId] = useState<string>(myWatches[0]?.id ?? "");
+  // My Watch未登録時のインライン登録
+  const [newWatchModelId, setNewWatchModelId] = useState("");
+  const [newWatchColor, setNewWatchColor] = useState("");
+  const [newWatchSize, setNewWatchSize] = useState("");
+  const newWatchModel = useMemo(
+    () => watchModels.find((m) => m.id === newWatchModelId) ?? null,
+    [watchModels, newWatchModelId]
+  );
+
   const [bandMode, setBandMode] = useState<"awj" | "unregistered">(
     pickerTree.length > 0 ? "awj" : "unregistered"
   );
 
-  // AWJ cascade
+  // AWJ cascade: Brand → Product → Color(SKU)
   const [brandId, setBrandId] = useState("");
-  const [seriesId, setSeriesId] = useState("");
+  const [productId, setProductId] = useState("");
   const [skuId, setSkuId] = useState("");
 
   // 未登録
@@ -58,19 +72,20 @@ export function PostForm({
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const seriesList = useMemo(
-    () => pickerTree.find((b) => b.id === brandId)?.series ?? [],
+  const productList = useMemo(
+    () => pickerTree.find((b) => b.id === brandId)?.products ?? [],
     [pickerTree, brandId]
   );
-  const skuList = useMemo(
-    () => seriesList.find((s) => s.id === seriesId)?.skus ?? [],
-    [seriesList, seriesId]
+  const selectedProduct: PickerProduct | null = useMemo(
+    () => productList.find((p) => p.id === productId) ?? null,
+    [productList, productId]
   );
+  const skuList = useMemo(() => selectedProduct?.skus ?? [], [selectedProduct]);
 
   function selectVerifiedSku(v: VerifiedSkuOption) {
     setBandMode("awj");
     setBrandId(v.brandId);
-    setSeriesId(v.seriesId);
+    setProductId(v.productId);
     setSkuId(v.skuId);
   }
 
@@ -185,12 +200,24 @@ export function PostForm({
       return setError("アップロードの完了をお待ちください。");
     if (media.some((m) => m.status === "error" || !m.storagePath))
       return setError("失敗したメディアを削除してから投稿してください。");
+    if (myWatches.length === 0 && !newWatchModelId)
+      return setError("Apple Watch のモデルを選択してください。");
+    if (myWatches.length > 0 && !userWatchId)
+      return setError("Apple Watch を選択してください。");
     if (bandMode === "awj" && !skuId)
       return setError("バンドのカラーを選択してください。");
 
     setSubmitting(true);
     const result = await createPost({
-      watch_model: watchModel,
+      user_watch_id: myWatches.length > 0 ? userWatchId : null,
+      new_watch:
+        myWatches.length === 0 && newWatchModelId
+          ? {
+              apple_watch_model_id: newWatchModelId,
+              case_color: newWatchColor || null,
+              case_size: newWatchSize ? Number(newWatchSize) : null,
+            }
+          : null,
       sku_id: bandMode === "awj" ? skuId : null,
       band_brand: bandMode === "unregistered" ? uBrand : undefined,
       band_name: bandMode === "unregistered" ? uName : undefined,
@@ -217,16 +244,82 @@ export function PostForm({
 
   return (
     <form onSubmit={onSubmit} className="mt-6 space-y-6">
-      {/* 1. Apple Watch モデル */}
+      {/* 1. あなたのWatch（My Watchから選択・初期値=メイン） */}
       <div>
-        <label className="block text-sm font-medium">Apple Watch モデル</label>
-        <select value={watchModel} onChange={(e) => setWatchModel(e.target.value)} className={inputClass}>
-          {models.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
+        <label className="block text-sm font-medium">あなたのWatch</label>
+        {myWatches.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {myWatches.map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                onClick={() => setUserWatchId(w.id)}
+                className={`rounded-full border px-3 py-1.5 text-sm ${
+                  userWatchId === w.id
+                    ? "border-ink bg-ink text-white"
+                    : "border-black/15 hover:bg-black/5"
+                }`}
+              >
+                {watchLabel(w)}
+                {w.isPrimary && (
+                  <span className={`ml-1.5 text-[10px] ${userWatchId === w.id ? "text-white/60" : "text-black/35"}`}>
+                    メイン
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-2 space-y-2 rounded-xl border border-black/10 bg-black/[0.02] p-3">
+            <p className="text-xs text-black/50">
+              お使いのApple Watchを登録しましょう（次回から選ぶだけになります）。
+            </p>
+            <select
+              value={newWatchModelId}
+              onChange={(e) => {
+                setNewWatchModelId(e.target.value);
+                setNewWatchColor("");
+                setNewWatchSize("");
+              }}
+              className={inputClass}
+            >
+              <option value="">モデルを選択</option>
+              {watchModels.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.display_name}
+                </option>
+              ))}
+            </select>
+            {newWatchModel && newWatchModel.case_colors.length > 0 && (
+              <select
+                value={newWatchColor}
+                onChange={(e) => setNewWatchColor(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">ケースカラー（任意）</option>
+                {newWatchModel.case_colors.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            )}
+            {newWatchModel && newWatchModel.case_sizes.length > 0 && (
+              <select
+                value={newWatchSize}
+                onChange={(e) => setNewWatchSize(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">ケースサイズ（任意）</option>
+                {newWatchModel.case_sizes.map((s) => (
+                  <option key={s} value={String(s)}>
+                    {s}mm
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 購入証明済みバンド（owned_bandsとは別データソース） */}
@@ -245,14 +338,14 @@ export function PostForm({
                     : "border-black/15 hover:bg-black/5"
                 }`}
               >
-                {[v.brandName, v.seriesName, v.colorName].filter(Boolean).join(" ")}
+                {[v.brandName, v.productName, v.colorName].filter(Boolean).join(" ")}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* 2. バンド選択 */}
+      {/* 2. バンド選択: AWJ商品 → ブランド → 商品 → カラー(SKU) */}
       <div>
         <label className="block text-sm font-medium">バンド</label>
         <div className="mt-1 flex gap-2">
@@ -283,7 +376,7 @@ export function PostForm({
               value={brandId}
               onChange={(e) => {
                 setBrandId(e.target.value);
-                setSeriesId("");
+                setProductId("");
                 setSkuId("");
               }}
               className={inputClass}
@@ -297,22 +390,49 @@ export function PostForm({
             </select>
             {brandId && (
               <select
-                value={seriesId}
+                value={productId}
                 onChange={(e) => {
-                  setSeriesId(e.target.value);
+                  setProductId(e.target.value);
                   setSkuId("");
                 }}
                 className={inputClass}
               >
-                <option value="">シリーズを選択</option>
-                {seriesList.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
+                <option value="">商品を選択</option>
+                {productList.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
                   </option>
                 ))}
               </select>
             )}
-            {seriesId && (
+
+            {/* 商品を選ぶと商品情報を自動表示（SKU→Product由来） */}
+            {selectedProduct && (
+              <div className="flex items-center gap-3 rounded-xl border border-black/10 bg-black/[0.02] p-3">
+                {selectedProduct.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={selectedProduct.imageUrl}
+                    alt={selectedProduct.name}
+                    className="h-14 w-14 shrink-0 rounded-lg border border-black/10 object-cover"
+                  />
+                ) : (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-black/5 text-lg">
+                    ⌚
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">
+                    {pickerTree.find((b) => b.id === brandId)?.name} {selectedProduct.name}
+                  </p>
+                  <p className="text-xs text-black/40">
+                    商品リンクは自動でセットされます（URL入力は不要）。
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {productId && (
               <select value={skuId} onChange={(e) => setSkuId(e.target.value)} className={inputClass}>
                 <option value="">カラーを選択</option>
                 {skuList.map((s) => (
@@ -322,9 +442,6 @@ export function PostForm({
                 ))}
               </select>
             )}
-            <p className="text-xs text-black/40">
-              選ぶと商品リンクは自動でセットされます（URL入力は不要）。
-            </p>
           </div>
         ) : (
           <div className="mt-3 space-y-2">
@@ -336,7 +453,7 @@ export function PostForm({
         )}
       </div>
 
-      {/* 4. 写真・動画 */}
+      {/* 3. 写真・動画 */}
       <div>
         <label className="block text-sm font-medium">写真・動画</label>
         <p className="text-xs text-black/40">最大5つ・動画は1本まで（50MB以内）。1枚目がカバーになります。</p>
@@ -410,7 +527,7 @@ export function PostForm({
         />
       </div>
 
-      {/* 5. コメント */}
+      {/* 4. コメント */}
       <div>
         <label className="block text-sm font-medium">
           コメント <span className="text-black/40">（任意）</span>

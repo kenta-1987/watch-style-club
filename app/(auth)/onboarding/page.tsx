@@ -57,8 +57,9 @@ export default async function OnboardingPage({
     : "";
 
   const { data: models } = await supabase
-    .from("watch_models")
-    .select("label")
+    .from("apple_watch_models")
+    .select("display_name")
+    .eq("is_active", true)
     .order("sort_order");
 
   return (
@@ -73,7 +74,7 @@ export default async function OnboardingPage({
         needsUsername={needsUsername}
         suggestedUsername={suggestedUsername}
         defaultDisplayName={defaultDisplayName}
-        models={(models ?? []).map((m) => m.label)}
+        models={(models ?? []).map((m) => m.display_name)}
         redirect={next}
       />
     </div>
