@@ -1,0 +1,62 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  font-family: "IPAPGothic", "IPAGothic", sans-serif;
+  background: #0e1013;
+  color: #f0ede6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.canvas {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 8% 0%, #1b2028 0%, #0e1013 62%);
+}
+
+/* hairline frame */
+.canvas::after {
+  content: "";
+  position: absolute;
+  inset: 34px;
+  border: 1px solid rgba(240, 237, 230, 0.10);
+  pointer-events: none;
+}
+
+.pad {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  padding: 82px 92px;
+  display: flex;
+  flex-direction: column;
+}
+
+.eyebrow {
+  font-size: 21px;
+  letter-spacing: 0.30em;
+  color: #8b9099;
+}
+
+.eyebrow .num {
+  color: #b99a63;
+  margin-left: 18px;
+}
+
+.spacer { flex: 1; }
+
+.rule {
+  width: 74px;
+  height: 2px;
+  background: #b99a63;
+}
+
+.foot {
+  font-size: 20px;
+  letter-spacing: 0.10em;
+  color: #767b84;
+  line-height: 1.85;
+}
+
+.accent { color: #b99a63; }
+.dim { color: #8b9099; }

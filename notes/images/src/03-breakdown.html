@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .canvas { width: 1280px; height: 720px; }
+  .pad { padding: 66px 84px 60px; }
+
+  h2 { font-size: 38px; font-weight: normal; letter-spacing: 0.03em; margin-top: 26px; }
+  h2 .sub { display: block; font-size: 22px; color: #767b84; letter-spacing: 0.10em; margin-top: 12px; }
+
+  .groups { display: flex; gap: 26px; margin-top: 44px; }
+
+  .group { flex: 1; display: flex; flex-direction: column; }
+  .group.wide { flex: 2.0; }
+  .group.mid { flex: 1.32; }
+
+  .glabel {
+    font-size: 21px;
+    letter-spacing: 0.12em;
+    padding-bottom: 13px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid rgba(240,237,230,0.14);
+  }
+  .glabel .who { font-size: 17px; color: #767b84; margin-left: 12px; letter-spacing: 0.08em; }
+
+  .cells { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  .cell {
+    flex: 1 1 calc(50% - 6px);
+    min-height: 132px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 25px;
+    letter-spacing: 0.02em;
+    border-radius: 3px;
+    padding: 10px;
+  }
+
+  /* handed to AI */
+  .ai .glabel { color: #b99a63; }
+  .ai .cell {
+    background: rgba(185,154,99,0.15);
+    border: 1px solid rgba(185,154,99,0.42);
+    color: #ecdcbd;
+  }
+
+  /* reshaped: detect and stop */
+  .mid .glabel { color: #a9aeb7; }
+  .mid .cell {
+    flex-basis: 100%;
+    display: block;
+    background: rgba(240,237,230,0.05);
+    border: 1px dashed rgba(240,237,230,0.34);
+    color: #d5d2cb;
+    line-height: 1.62;
+    font-size: 24px;
+    padding: 20px 14px;
+  }
+  .mid .cell .dim { font-size: 21px; }
+
+  /* kept by human */
+  .me .glabel { color: #f0ede6; }
+  .me .cell {
+    flex-basis: 100%;
+    background: transparent;
+    border: 2px solid #f0ede6;
+    color: #f0ede6;
+  }
+
+  .rule { margin: 34px 0 20px; }
+</style>
+</head>
+<body>
+<div class="canvas"><div class="pad">
+
+  <div class="eyebrow">AIと働く記録<span class="num">02</span></div>
+
+  <h2>
+    「受発注」というひとつの仕事は、6つの束だった。
+    <span class="sub">性質が違うものが、束になって見えていただけだった</span>
+  </h2>
+
+  <div class="groups">
+
+    <div class="group wide ai">
+      <div class="glabel">渡した<span class="who">ルールが決まっている</span></div>
+      <div class="cells">
+        <div class="cell">データを取ってくる</div>
+        <div class="cell">形を整える</div>
+        <div class="cell">実行する</div>
+        <div class="cell">結果を確認する</div>
+      </div>
+    </div>
+
+    <div class="group mid">
+      <div class="glabel">渡し方を変えた</div>
+      <div class="cells">
+        <div class="cell">例外に気づく<br><span class="dim">→ 条件から外れたら、<br>　 止めて、見せる</span></div>
+      </div>
+    </div>
+
+    <div class="group me">
+      <div class="glabel">残した<span class="who">決まっていない</span></div>
+      <div class="cells">
+        <div class="cell">中身を見て<br>判断する</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="spacer"></div>
+  <div class="rule"></div>
+  <div class="foot">残ったものが自分の仕事だと分かったのは、分解したからだ。</div>
+
+</div></div>
+</body>
+</html>
